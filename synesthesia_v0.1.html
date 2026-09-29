@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1">
+        <title>Synesthesia · Milestone 1</title><style>:root{font-family:Inter,system-ui,sans-serif;color:#eee;background:#0b0d14}*{box-sizing:border-box}body{margin:0;padding:32px}main{max-width:1200px;margin:auto}h1{font-size:clamp(2rem,5vw,4rem);margin:6px 0}p{color:#aeb4c5;line-height:1.5}.tag{color:#7cf2c5;letter-spacing:.2em;font-size:.75rem}section{display:grid;grid-template-columns:minmax(270px,330px) 1fr;gap:24px;margin-top:26px}.panel{background:#151923;border:1px solid #303646;border-radius:18px;padding:22px}label{display:block;margin:18px 0;color:#dce2ed}label span{float:right;color:#7cf2c5;font-variant-numeric:tabular-nums}input[type=range],input[type=number],select{width:100%;margin-top:10px}input[type=range]{accent-color:#7cf2c5}input[type=number],select{background:#0b0d14;color:white;border:1px solid #444b5b;border-radius:8px;padding:10px;font:inherit}button{background:#7cf2c5;color:#06130e;border:0;border-radius:9px;padding:12px 16px;font:inherit;font-weight:700;cursor:pointer;margin:8px 8px 0 0}button.secondary{background:#30394a;color:#fff}canvas{display:block;width:100%;aspect-ratio:1;background:#080b13;border-radius:13px}small{display:block;color:#9da9b9;line-height:1.5;margin-top:18px}@media(max-width:760px){body{padding:18px}section{grid-template-columns:1fr}}
+    </style>
+    </head>
+    <body>
+        <main>
+            <div class="tag">SYNESTHESIA / 01 · PROCEDURAL ART</div>
+            <h1>Draw with algorithms.</h1>
+            <p>Adjust the rules, choose a seed, and watch thousands of paths follow a mathematical flow field. The same settings and seed produce the same image.</p>
+            <section>
+                <div class="panel">
+                    <label>Palette
+                        <select id="palette">
+                        <option value="aurora">Aurora</option>
+                        <option value="ember">Ember</option>
+                        <option value="ocean">Ocean</option>
+                    </select>
+                </label>
+                <label>Complexity 
+                    <span id="complexityValue"></span>
+                    <input id="complexity" type="range" min="1" max="10" value="6">
+                </label>
+                <label>Flow 
+                    <span id="flowValue"></span>
+                    <input id="flow" type="range" min="1" max="10" value="6">
+                </label>
+                <label>Curvature 
+                    <span id="curvatureValue"></span>
+                    <input id="curvature" type="range" min="1" max="10" value="5">
+                </label>
+                <label>Seed
+                    <input id="seed" type="number" value="2026" step="1">
+                </label>
+                <button id="draw">Generate</button>
+                <button id="random" class="secondary">New seed</button>
+                <button id="save" class="secondary">Save PNG</button>
+                <small>Try a high flow value with low curvature, then reverse them. Save a seed you like so you can recreate the result.</small>
+                </div>
+                <div class="panel">
+                    <canvas id="art" width="900" height="900" aria-label="Generated abstract artwork"></canvas>
+                </div>
+            </section>
+            <p>Next milestone: map words and concepts to these visible parameters, then evaluate whether a learned mapping performs better than simple rules.</p>
+        </main>
+    <script>
+    for(let i=0;i<count;i++){let x=rand()*W,y=rand()*H;ctx.beginPath();ctx.moveTo(x,y);const color=colors[Math.floor(rand()*colors.length)];ctx.strokeStyle=color;ctx.globalAlpha=.12+rand()*.28;ctx.lineWidth=.45+rand()*1.15;for(let j=0;j<steps;j++){// Two sine waves form a continuous vector field; seed shifts its phase.
+    const phase=seed*.003,angle=(Math.sin(x*scale+phase)*Math.cos(y*scale*.8-phase)+Math.sin(y*scale*1.4+phase*.7))*turn; x+=Math.cos(angle)*2.4;y+=Math.sin(angle)*2.4;ctx.lineTo(x,y);if(x<0||x>W||y<0||y>H)break}ctx.stroke()}ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over'}
+    for(const id of ['complexity','flow','curvature']){$(id).addEventListener('input',()=>{$(id+'Value').textContent=$(id).value;render()});$(id+'Value').textContent=$(id).value}for(const id of ['palette','seed'])$(id).addEventListener('change',render);$('draw').onclick=render;$('random').onclick=()=>{$('seed').value=Math.floor(Math.random()*1e9);render()};$('save').onclick=()=>{const a=document.createElement('a');a.download=`synesthesia-${$('seed').value}.png`;a.href=canvas.toDataURL('image/png');a.click()};render();
+    </script>
+    </body>
+</html>
