@@ -16,6 +16,11 @@
                     <label>Concept
                     <input id="concept" type="text" placeholder="e.g. ocean, fire, forest">
                 </label>
+                <label>Explore examples
+                    <select id="examples">
+                        <option value="">Choose a concept</option>
+                    </select>
+                </label>
                 </label>
                 <label>Complexity 
                     <span id="complexityValue"></span>
@@ -29,15 +34,21 @@
                     <span id="curvatureValue"></span>
                     <input id="curvature" type="range" min="1" max="10" value="5">
                 </label>
-                <label>Seed
-                    <input id="seed" type="number" value="2026" step="1">
+                <label>Hue
+                    <span id = "baseHueValue"></span>
+                    <input id="baseHue" type="range" min="0" max="360" value="200">
                 </label>
-                <label>Palette
-                    <select id="palette">
-                        <option value="aurora">Aurora</option>
-                        <option value="ember">Ember</option>
-                        <option value="ocean">Ocean</option>
-                    </select>
+                <label> Color spread
+                    <span id = "hueSpreadValue"></span>
+                    <input id="hueSpread" type="range" min="0" max="180" value="40">
+                </label>
+                <label>Swirl
+                    <span id="swirlValue"></span>
+                    <input id="swirl" type="range"
+                        min="0" max="1" step="0.05" value="0">
+                </label>
+                <label>Seed
+                    <input id="seed" type="number" value="0001" step="1">
                 </label>
                 <p id="conceptStatus" aria-live="polite"></p>
                 <button id="draw">Generate</button>
@@ -58,11 +69,6 @@
         const canvas=$('art'),
         ctx=canvas.getContext('2d');
 
-        const palettes={
-            aurora: ['#39e9c4', '#4dbbff', '#a46aff', '#f984d8'],
-            ember: ['#ff724a', '#ffca65', '#ef438b', '#865bff'],
-            ocean: ['#73e2f5', '#3c9fe8', '#4568c9', '#a2ffd5']
-        };
        // Produces the same sequence of random numbers for the same seed.
         function randomFrom(seed) {
             let state = (seed | 0) >>> 0;
@@ -76,36 +82,50 @@
             };
         }
 
+        const conceptDataset = [
+            { concept: 'ocean', baseHue: 240, hueSpread: 40, complexity: 9, flow: 7, curvature: 9, swirl: 0.55 },
+            { concept: 'fire', baseHue: 40, hueSpread: 88, complexity: 7, flow: 6, curvature: 4, swirl: 0.5 },
+            { concept: 'forest', baseHue: 120, hueSpread: 60, complexity: 4, flow: 3, curvature: 3, swirl: 0.1 },
+            { concept: 'sunset', baseHue: 34, hueSpread: 47, complexity: 8, flow: 9, curvature: 5, swirl: 0.55 },
+            { concept: 'storm', baseHue: 210, hueSpread: 80, complexity: 8, flow: 8, curvature: 7, swirl: 0.6 },
+            { concept: 'desert', baseHue: 70, hueSpread: 70, complexity: 5, flow: 4, curvature: 2, swirl: 0.25 },
+            { concept: 'mist', baseHue: 180, hueSpread: 30, complexity: 3, flow: 2, curvature: 1, swirl: 0.15 },
+            { concept: 'lava', baseHue: 20, hueSpread: 100, complexity: 6, flow: 5, curvature: 4, swirl: 0.5 },
+            { concept: 'ice', baseHue: 200, hueSpread: 50, complexity: 4, flow: 3, curvature: 2, swirl: 0.2 },
+            { concept: 'lightning', baseHue: 60, hueSpread: 90, complexity: 10, flow: 1, curvature: 1, swirl: 0.1 },
+            { concept: 'volcano', baseHue: 15, hueSpread: 110, complexity: 7, flow: 6, curvature: 5, swirl: 0.55 },
+            { concept: 'jungle', baseHue: 100, hueSpread: 80, complexity: 6, flow: 5, curvature: 4, swirl: 0.3 },
+            { concept: 'glacier', baseHue: 190, hueSpread: 40, complexity: 7, flow: 3, curvature: 2, swirl: 0.45 },
+            { concept: 'planet', baseHue: 140, hueSpread: 140, complexity: 7, flow: 4, curvature: 3, swirl: 0.95 },
+            { concept: 'waterfall', baseHue: 200, hueSpread: 50, complexity: 7, flow: 2, curvature: 1, swirl: 0.4 },
+            { concept: 'hurricane', baseHue: 220, hueSpread: 80, complexity: 10, flow: 9, curvature: 8, swirl: 0.6 },
+            { concept: 'whirlpool', baseHue: 180, hueSpread: 70, complexity: 9, flow: 8, curvature: 7, swirl: 0.75 },
+            { concept: 'basketball', baseHue: 30, hueSpread: 20, complexity: 9, flow: 6, curvature: 4, swirl: 1 },
+            { concept: 'music', baseHue: 260, hueSpread: 180, complexity: 8, flow: 7, curvature: 5, swirl: 0.5 },
+            { concept: 'space', baseHue: 240, hueSpread: 120, complexity: 8, flow: 6, curvature: 5, swirl: 0.5 }
+        ];
+
+        const examples = $('examples');
+        for (const example of conceptDataset) {
+            const option = document.createElement('option');
+            option.value = example.concept;
+            option.textContent = example.concept;
+            examples.appendChild(option);
+        }
+        examples.addEventListener('change', () => {
+            if (!examples.value) return;
+
+            $('concept').value = examples.value;
+            generateFromConcept();
+        });
         function interpretConcept(word) {
-            const concept = word.trim().toLowerCase();
+            const normalized = word.trim().toLowerCase();
 
-            if(concept === 'ocean') {
-                return {
-                    palette: 'ocean',
-                    complexity: 4,
-                    flow: 8,
-                    curvature: 7
-                };
-            }
+            const match = conceptDataset.find(
+                example => example.concept === normalized
+            );
 
-            if (concept === 'fire') {
-                return {
-                    palette: 'ember',
-                    complexity: 7,
-                    flow: 5,
-                    curvature: 3
-                };
-            }
-
-            if (concept === 'forest') {
-                return {
-                    palette: 'aurora',
-                    complexity: 6,
-                    flow: 6,
-                    curvature: 5
-                };
-            }
-            return null;
+            return match ?? null;
         }
 
         function generateFromConcept() {
@@ -117,10 +137,7 @@
                 return;
             }
 
-             // Copy the interpreted settings into the existing controls.
-            $('palette').value = settings.palette;
-
-            for (const id of ['complexity', 'flow', 'curvature']) {
+            for (const id of ['complexity', 'flow', 'curvature', 'baseHue', 'hueSpread', 'swirl']) {
                 $(id).value = settings[id];
                 $(id + 'Value').textContent = $(id).value;
             }
@@ -135,11 +152,13 @@
             const flow = Number($('flow').value);
             const curvature = Number($('curvature').value);
             const seed = Number($('seed').value) || 0;
+            const baseHue = Number($('baseHue').value);
+            const hueSpread = Number($('hueSpread').value);
+            const swirl = Number($('swirl').value);
 
             const rand = randomFrom(seed);
             const W = canvas.width;
             const H = canvas.height;
-            const colors = palettes[$('palette').value];
 
             // Clear the previous artwork.
             ctx.fillStyle = '#080b13';
@@ -155,14 +174,40 @@
             for(let i=0;i<count;i++)
                 {let x=rand()*W,y=rand()*H;
                     ctx.beginPath();ctx.moveTo(x,y);
-                    const baseHue = 200;
-                    const hueSpread = 40;
                     ctx.globalAlpha=.12+rand()*.28;
                     ctx.lineWidth=.45+rand()*1.15;
                     for(let j=0;j<steps;j++){// Two sine waves form a continuous vector field; seed shifts its phase.
-                    const phase=seed*.003,angle=(Math.sin(x*scale+phase)*Math.cos(y*scale*.8-phase)+Math.sin(y*scale*1.4+phase*.7))*turn; x+=Math.cos(angle)*2.4;y+=Math.sin(angle)*2.4;ctx.lineTo(x,y);if(x<0||x>W||y<0||y>H)break}ctx.stroke()}ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';
+                    const phase = seed * 0.003;
+
+                    // Your original flowing direction.
+                    const flowAngle = (
+                        Math.sin(x * scale + phase) *
+                        Math.cos(y * scale * 0.8 - phase) +
+                        Math.sin(y * scale * 1.4 + phase * 0.7)
+                    ) * turn;
+
+                    // Direction tangent to a circle around the canvas center.
+                    const orbitAngle =
+                        Math.atan2(y - H / 2, x - W / 2) + Math.PI / 2;
+
+                    // Blend direction vectors rather than angles.
+                    const dx =
+                        (1 - swirl) * Math.cos(flowAngle) +
+                        swirl * Math.cos(orbitAngle);
+
+                    const dy =
+                        (1 - swirl) * Math.sin(flowAngle) +
+                        swirl * Math.sin(orbitAngle);
+
+                    x += dx * 2.4;
+                    y += dy * 2.4;
+                    ctx.lineTo(x,y);
+                    const hue = baseHue + (rand() - 0.5) * hueSpread;
+                    ctx.strokeStyle = `hsl(${hue}, 85%, 60%)`;
+                    if(x<0||x>W||y<0||y>H)break}ctx.stroke()}
+                    ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';
         }
-            for(const id of ['complexity','flow','curvature']){$(id).addEventListener('input',()=>{$(id+'Value').textContent=$(id).value;render()});$(id+'Value').textContent=$(id).value}for(const id of ['palette','seed'])$(id).addEventListener('change',render);$('draw').onclick=generateFromConcept;$('random').onclick=()=>{$('seed').value=Math.floor(Math.random()*1e9);render()};$('save').onclick=()=>{const a=document.createElement('a');a.download=`synesthesia-${$('seed').value}.png`;a.href=canvas.toDataURL('image/png');a.click()};render();
+            for(const id of ['complexity','flow','curvature', 'baseHue', 'hueSpread', 'swirl']){$(id).addEventListener('input',()=>{$(id+'Value').textContent=$(id).value;render()});$(id+'Value').textContent=$(id).value}for(const id of ['seed'])$(id).addEventListener('change',render);$('draw').onclick=generateFromConcept;$('random').onclick=()=>{$('seed').value=Math.floor(Math.random()*1e9);render()};$('save').onclick=()=>{const a=document.createElement('a');a.download=`synesthesia-${$('seed').value}.png`;a.href=canvas.toDataURL('image/png');a.click()};render();
     </script>
     </body>
 </html>
