@@ -128,24 +128,56 @@
             return match ?? null;
         }
 
-        function generateFromConcept() {
-            const word = $('concept').value;
-            const settings = interpretConcept(word);
+        async function generateFromConcept() 
+        {
+            const text = $('concept').value.trim();
 
-            if(!settings) {
-                $('conceptStatus').textContent = 'No known mapping for this concept.';
+            if (!text) 
+            {
+                $('conceptStatus').textContent = 'Enter a concept first.';
                 return;
             }
 
-            for (const id of ['complexity', 'flow', 'curvature', 'baseHue', 'hueSpread', 'swirl']) {
-                $(id).value = settings[id];
-                $(id + 'Value').textContent = $(id).value;
+            $('draw').disabled = true;
+            $('conceptStatus').textContent = 'Interpreting your concept…';
+
+            try {
+                const response = await fetch('/interpret', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ text })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API returned ${response.status}`);
+                }
+
+                const result = await response.json();
+                const settings = result.settings;
+
+                for (const id of [
+                    'baseHue', 'hueSpread', 'complexity',
+                    'flow', 'curvature', 'swirl'
+                ]) {
+                    $(id).value = settings[id];
+                    $(id + 'Value').textContent = $(id).value;
+                }
+
+                render();
+
+                $('conceptStatus').textContent =
+                    `"${text}" → ${settings.concept} · ` +
+                    `Similarity: ${result.similarity.toFixed(3)}`;
+
+            } catch (error) {
+                console.error(error);
+                $('conceptStatus').textContent =
+                    'Generation failed. Check that the Python server is running.';
+            } finally {
+                $('draw').disabled = false;
             }
-
-            $('conceptStatus').textContent =
-                `Interpreting "${word.trim()}"`;
-
-            render();
         }
         function render() {
             const complexity = Number($('complexity').value);
