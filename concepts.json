@@ -1,0 +1,182 @@
+[
+  {
+    "concept": "ocean",
+    "baseHue": 240,
+    "hueSpread": 40,
+    "complexity": 9,
+    "flow": 7,
+    "curvature": 9,
+    "swirl": 0.55
+  },
+  {
+    "concept": "fire",
+    "baseHue": 40,
+    "hueSpread": 88,
+    "complexity": 7,
+    "flow": 6,
+    "curvature": 4,
+    "swirl": 0.5
+  },
+  {
+    "concept": "forest",
+    "baseHue": 120,
+    "hueSpread": 60,
+    "complexity": 4,
+    "flow": 3,
+    "curvature": 3,
+    "swirl": 0.1
+  },
+  {
+    "concept": "sunset",
+    "baseHue": 34,
+    "hueSpread": 47,
+    "complexity": 8,
+    "flow": 9,
+    "curvature": 5,
+    "swirl": 0.55
+  },
+  {
+    "concept": "storm",
+    "baseHue": 210,
+    "hueSpread": 80,
+    "complexity": 8,
+    "flow": 8,
+    "curvature": 7,
+    "swirl": 0.6
+  },
+  {
+    "concept": "desert",
+    "baseHue": 70,
+    "hueSpread": 70,
+    "complexity": 5,
+    "flow": 4,
+    "curvature": 2,
+    "swirl": 0.25
+  },
+  {
+    "concept": "mist",
+    "baseHue": 180,
+    "hueSpread": 30,
+    "complexity": 3,
+    "flow": 2,
+    "curvature": 1,
+    "swirl": 0.15
+  },
+  {
+    "concept": "lava",
+    "baseHue": 20,
+    "hueSpread": 100,
+    "complexity": 6,
+    "flow": 5,
+    "curvature": 4,
+    "swirl": 0.5
+  },
+  {
+    "concept": "ice",
+    "baseHue": 200,
+    "hueSpread": 50,
+    "complexity": 4,
+    "flow": 3,
+    "curvature": 2,
+    "swirl": 0.2
+  },
+  {
+    "concept": "lightning",
+    "baseHue": 60,
+    "hueSpread": 90,
+    "complexity": 10,
+    "flow": 1,
+    "curvature": 1,
+    "swirl": 0.1
+  },
+  {
+    "concept": "volcano",
+    "baseHue": 15,
+    "hueSpread": 110,
+    "complexity": 7,
+    "flow": 6,
+    "curvature": 5,
+    "swirl": 0.55
+  },
+  {
+    "concept": "jungle",
+    "baseHue": 100,
+    "hueSpread": 80,
+    "complexity": 6,
+    "flow": 5,
+    "curvature": 4,
+    "swirl": 0.3
+  },
+  {
+    "concept": "glacier",
+    "baseHue": 190,
+    "hueSpread": 40,
+    "complexity": 7,
+    "flow": 3,
+    "curvature": 2,
+    "swirl": 0.45
+  },
+  {
+    "concept": "planet",
+    "baseHue": 140,
+    "hueSpread": 140,
+    "complexity": 7,
+    "flow": 4,
+    "curvature": 3,
+    "swirl": 0.95
+  },
+  {
+    "concept": "waterfall",
+    "baseHue": 200,
+    "hueSpread": 50,
+    "complexity": 7,
+    "flow": 2,
+    "curvature": 1,
+    "swirl": 0.4
+  },
+  {
+    "concept": "hurricane",
+    "baseHue": 220,
+    "hueSpread": 80,
+    "complexity": 10,
+    "flow": 9,
+    "curvature": 8,
+    "swirl": 0.6
+  },
+  {
+    "concept": "whirlpool",
+    "baseHue": 180,
+    "hueSpread": 70,
+    "complexity": 9,
+    "flow": 8,
+    "curvature": 7,
+    "swirl": 0.75
+  },
+  {
+    "concept": "basketball",
+    "baseHue": 30,
+    "hueSpread": 20,
+    "complexity": 9,
+    "flow": 6,
+    "curvature": 4,
+    "swirl": 1
+  },
+  {
+    "concept": "music",
+    "baseHue": 260,
+    "hueSpread": 180,
+    "complexity": 8,
+    "flow": 7,
+    "curvature": 5,
+    "swirl": 0.5
+  },
+  {
+    "concept": "space",
+    "baseHue": 240,
+    "hueSpread": 120,
+    "complexity": 8,
+    "flow": 6,
+    "curvature": 5,
+    "swirl": 0.5
+  }
+]

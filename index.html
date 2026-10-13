@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Synesthesia — Generative Studio</title>
+<link rel="stylesheet" href="/studio.css"></head><body>
+<header><a href="/" class="brand">SYNESTHESIA<span>GENERATIVE STUDIO / 02</span></a><span class="badge">LANGUAGE → FORM</span></header>
+<main><div class="intro"><p class="eyebrow">A STUDY IN COMPUTATIONAL EXPRESSION</p><h1>Give an idea<br>a visual language.</h1><p>Currents, growth, heat, geometry. Explore the structures hidden in a concept.</p></div>
+<div class="workspace"><aside>
+<form id="conceptForm"><label for="concept">YOUR CONCEPT</label><div class="prompt"><input id="concept" value="ocean" maxlength="300" placeholder="A quiet ocean at night…" required><button id="draw" type="submit">Interpret ↗</button></div></form>
+<label for="examples">EXPLORE AN EXAMPLE</label><select id="examples"><option value="">Select a concept</option></select>
+<div class="rule"></div><label for="structure">VISUAL STRUCTURE</label><select id="structure"><option value="ribbons">Flowing ribbons</option><option value="flames">Rising flames</option><option value="branches">Branching growth</option><option value="orbits">Orbital geometry</option><option value="crystals">Crystalline facets</option><option value="lightning">Electric fractures</option></select>
+<div id="sliders"></div>
+<label for="seed">GENERATION SEED</label><input id="seed" type="number" step="1" value="2026">
+<div class="actions"><button id="random">New seed</button><button id="save">Save PNG ↓</button><button id="recipe">Save recipe ↓</button></div>
+<p class="hint">Change the rules to explore. A seed and recipe reproduce the same artwork in this engine.</p>
+</aside><section class="stage"><div class="stage-bar"><span id="artTitle">OCEAN / FLOWING RIBBONS</span><span id="renderStatus">READY</span></div><canvas id="art" width="1200" height="1200" aria-label="Procedurally generated abstract artwork"></canvas><div class="caption"><p id="conceptStatus" role="status" aria-live="polite">Loading examples…</p><p id="structureDescription"></p></div></section></div>
+<footer><span>DRAWN WITH MATHEMATICS. GUIDED BY LANGUAGE.</span><span>Seeded noise · Recursive growth · Parametric geometry</span></footer></main>
+<script src="/engine.js"></script><script src="/studio.js"></script></body></html>
