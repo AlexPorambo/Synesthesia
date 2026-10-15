@@ -1,5 +1,6 @@
 'use strict';
 const $ = id => document.getElementById(id);
+let activeLayers = [];
 const specs = [
     ['complexity', 'Complexity', 1, 10, 1, 7],
     ['flow', 'Field frequency', 1, 10, 1, 5],
@@ -16,7 +17,9 @@ const descriptions = {
     branches: 'Recursive segments divide into smaller branches with seeded variation.',
     orbits: 'Parametric ellipses and harmonic perturbations create orbital geometry.',
     crystals: 'Sixfold symmetry organizes nested facets and angular spines.',
-    lightning: 'Jagged paths fracture into smaller branching bolts.'
+    lightning: 'Jagged paths fracture into smaller branching bolts.',
+    lava: 'Cooled plates divided by luminous molten channels.',
+    particles: 'Fine luminous particles.'
 };
 let dataset = [], matchedConcept = 'ocean', busy = false, renderTicket = 0;
 for (const [id, label, min, max, step, value] of specs) {
@@ -25,12 +28,16 @@ for (const [id, label, min, max, step, value] of specs) {
     $('sliders').appendChild(wrapper);
     $(id).addEventListener('input', () => {
         $(id + 'Value').textContent = $(id).value;
+        activeLayers = Array.isArray(recipe.layers)
+        ? recipe.layers.slice(0, 3)
+        : [];
         scheduleRender();
     });
 }
 function readRecipe() {
     const recipe = {structure: $('structure').value, seed: Number($('seed').value) || 0};
     for (const [id] of specs) recipe[id] = Number($(id).value);
+    recipe.layers = activeLayers;
     return recipe;
 }
 function applySettings(settings) {
@@ -53,31 +60,40 @@ function scheduleRender() {
         $('structureDescription').textContent = descriptions[$('structure').value];
     });
 }
-async function generateFromConcept() {
-    if (busy) return;
+function freshSeed() {
+    const bytes = new Uint32Array(1);
+
+    // Avoid immediately repeating the current seed.
+    do {
+        crypto.getRandomValues(bytes);
+    } while (bytes[0] === Number($('seed').value));
+
+    $('seed').value = bytes[0];
+}
+function generateFromConcept() {
     const text = $('concept').value.trim();
-    if (!text) { $('conceptStatus').textContent = 'Enter a concept first.'; return; }
-    busy = true; $('draw').disabled = true; $('examples').disabled = true;
-    $('conceptStatus').textContent = 'Finding a semantic interpretation…';
-    try {
-        const response = await fetch('/interpret', {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({text}), signal: AbortSignal.timeout(60000)
-        });
-        if (!response.ok) throw new Error(`API returned ${response.status}`);
-        const result = await response.json();
-        applySettings(result.settings);
-        scheduleRender();
-        $('conceptStatus').textContent = `“${text}” → ${result.settings.concept} · similarity ${result.similarity.toFixed(3)} · reference settings`;
-    } catch (error) {
-        console.error(error);
-        // Exact local examples remain useful if the semantic service is down.
-        const exact = dataset.find(item => item.concept === text.toLowerCase());
-        if (exact) {
-            applySettings(exact); scheduleRender();
-            $('conceptStatus').textContent = `Local example: ${exact.concept}. Semantic API unavailable.`;
-        } else $('conceptStatus').textContent = 'Could not reach the semantic API. Check the Python terminal and try again.';
-    } finally { busy = false; $('draw').disabled = false; $('examples').disabled = false; }
+
+    if (!text) {
+        $('conceptStatus').textContent = 'Enter a concept first.';
+        return;
+    }
+
+    const plan = Interpreter.interpret(text);
+
+    applySettings(plan.settings);
+    activeLayers = plan.layers;
+
+    // Works whether or not you added the seed-lock checkbox.
+    if (!$('lockSeed')?.checked) {
+        freshSeed();
+    }
+
+    scheduleRender();
+
+    $('conceptStatus').textContent =
+        `${plan.note} · ` +
+        `${plan.matched.join(' + ') || 'abstract'} · ` +
+        activeLayers.map(layer => layer.structure).join(' + ');
 }
 function downloadBlob(blob, filename) {
     const url = URL.createObjectURL(blob), a = document.createElement('a');
@@ -86,14 +102,16 @@ function downloadBlob(blob, filename) {
 }
 $('conceptForm').addEventListener('submit', event => {event.preventDefault(); generateFromConcept();});
 $('examples').addEventListener('change', () => {
-    const example = dataset.find(item => item.concept === $('examples').value);
-    if (!example) return;
-    // An exact example already has labels; no model request is needed.
-    $('concept').value = example.concept;
-    applySettings(example); scheduleRender();
-    $('conceptStatus').textContent = `Exploring your labeled example: ${example.concept}.`;
+    if (!$('examples').value) return;
+
+    $('concept').value = $('examples').value;
+    generateFromConcept();
 });
-$('structure').addEventListener('change', scheduleRender);
+$('structure').addEventListener('change', () => {
+    // Manual structure selection switches to one drawing system.
+    activeLayers = [];
+    scheduleRender();
+});
 $('seed').addEventListener('change', scheduleRender);
 $('random').addEventListener('click', () => {
     const bytes = new Uint32Array(1); crypto.getRandomValues(bytes);
@@ -108,21 +126,25 @@ $('recipe').addEventListener('click', () => {
     const recipe = {engineVersion: ArtEngine.version, prompt: $('concept').value, ...readRecipe()};
     downloadBlob(new Blob([JSON.stringify(recipe, null, 2)], {type: 'application/json'}), `synesthesia-recipe-${recipe.seed}.json`);
 });
-async function init() {
-    try {
-        const response = await fetch('/concepts');
-        if (!response.ok) throw new Error('Could not load concepts');
-        dataset = await response.json();
-        for (const example of dataset) {
-            const option = document.createElement('option');
-            option.value = example.concept; option.textContent = example.concept;
-            $('examples').appendChild(option);
-        }
-        applySettings(dataset.find(item => item.concept === 'ocean') || dataset[0]);
-        $('conceptStatus').textContent = 'Explore an example, or interpret unfamiliar text with the language model.';
-    } catch (error) {
-        $('conceptStatus').textContent = 'Open this studio through the Python server at http://127.0.0.1:8000/.';
+function init() {
+    dataset = Interpreter.names.map(name =>
+        Interpreter.interpret(name).settings
+    );
+
+    for (const name of Interpreter.names) {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        $('examples').appendChild(option);
     }
+
+    const plan = Interpreter.interpret('ocean');
+
+    applySettings(plan.settings);
+    activeLayers = plan.layers;
     scheduleRender();
+
+    $('conceptStatus').textContent =
+        'Try calm ocean, blue fire, lava, or fire and ice.';
 }
 init();

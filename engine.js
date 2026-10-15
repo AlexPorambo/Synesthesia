@@ -43,6 +43,18 @@ const ArtEngine = (() => {
         const ctx = canvas.getContext('2d');
         const rand = randomFrom(Number(p.seed) || 0);
         const noise = makeNoise((Number(p.seed) || 0) ^ 0x13579);
+        const compositionRandom = randomFrom(
+            (Number(p.seed) || 0) ^ 0x6A09E667
+        );
+
+        const composition = {
+            x: 380 + compositionRandom() * 240,
+            y: 400 + compositionRandom() * 200,
+            rotation: (compositionRandom() - 0.5) * 0.8,
+            scale: 0.75 + compositionRandom() * 0.45,
+            density: 0.65 + compositionRandom() * 0.7,
+            variant: Math.floor(compositionRandom() * 3)
+        };
         const c = p.complexity / 10, bend = p.curvature / 10;
         const color = (offset = 0, light = 62, alpha = 1) =>
             `hsla(${p.baseHue + offset}, ${p.saturation}%, ${light}%, ${alpha})`;
@@ -72,7 +84,7 @@ const ArtEngine = (() => {
         function ribbons() {
             // Closely spaced trajectories form coherent bands, with noise
             // bending them and a vortex adding rotational attraction.
-            const bands = 3 + Math.round(c * 5);
+            const bands = 2 + Math.round(c * 7 * composition.density);
             for (let b = 0; b < bands; b++) {
                 const y0 = 180 + b * 640 / bands + rand() * 70;
                 const phase = rand() * TAU, hue = (rand() - .5) * p.hueSpread;
@@ -98,9 +110,12 @@ const ArtEngine = (() => {
         function flames() {
             // Separate plumes rise from a source region. Width and opacity
             // taper with height; noise introduces coherent turbulence.
-            const plumes = 4 + Math.round(c * 6);
+            const plumes = 2 + Math.round(c * 8 * composition.density);
+            const sourceWidth = 100 + rand() * 500;
+            const sourceCenter = 350 + rand() * 300;
             for (let b = 0; b < plumes; b++) {
-                const center = 280 + rand() * 440, height = 330 + rand() * 510;
+                const center = sourceCenter + (rand() - 0.5) * sourceWidth;
+                const height = 250 + rand() * 590;
                 const spread = 20 + rand() * 90, hue = (rand() - .5) * p.hueSpread;
                 const threads = 30 + Math.round(c * 55);
                 const phase = rand() * TAU;
@@ -144,24 +159,35 @@ const ArtEngine = (() => {
                 branch(endX, endY, angle + spread * (.7 + rand() * .6), len * (.65 + rand() * .12), level - 1, hue + 2);
                 if (level <= 2) dot(endX, endY, .6 + rand(), color(hue, 76, .35));
             }
-            const roots = 3 + Math.round(c * 5);
+            const roots = 2 + Math.round(c * 7 * composition.density);
+            const radial = composition.variant === 1;
+
             for (let i = 0; i < roots; i++) {
-                branch(110 + i * 780 / Math.max(1, roots - 1), 940 - rand() * 100,
-                    -Math.PI / 2 + (rand() - .5) * .25,
-                    95 + rand() * 55, depth, (rand() - .5) * p.hueSpread);
+                const x = radial ? 500 : 100 + rand() * 800;
+                const y = radial ? 500 : 820 + rand() * 120;
+
+                const angle = radial
+                    ? i / roots * TAU
+                    : -Math.PI / 2 + (rand() - 0.5) * 0.8;
+
+                branch(x,y,angle,80 + rand() * 90,depth,(rand() - 0.5) * p.hueSpread);
             }
         }
         function orbits() {
             const count = 90 + Math.round(c * 230);
+            const orbitTilt = rand() * Math.PI;
+            const orbitFlattening = 0.2 + rand() * 0.75;
+            const orbitWobble = 4 + rand() * 28;
             for (let i = 0; i < count; i++) {
                 const radius = 70 + i / count * 340;
-                const tilt = .35 + bend * .6;
+                const tilt = orbitTilt;
                 const phase = rand() * TAU, pts = [];
                 const hue = (i / count - .5) * p.hueSpread;
                 for (let j = 0; j <= 400; j++) {
                     const a = j / 400 * TAU;
-                    const r = radius + Math.sin(a * (2 + Math.round(p.flow / 2)) + phase) * (4 + bend * 16);
-                    const xx = Math.cos(a) * r, yy = Math.sin(a) * r * (.4 + p.swirl * .55);
+                    const r = radius + Math.sin(a * (2 + Math.round(p.flow / 2)) + phase) * orbitWobble;                    
+                    const xx = Math.cos(a) * r;
+                    const yy = Math.sin(a) * r * orbitFlattening;                    
                     pts.push([500 + xx * Math.cos(tilt) - yy * Math.sin(tilt),
                         500 + xx * Math.sin(tilt) + yy * Math.cos(tilt)]);
                 }
@@ -170,7 +196,7 @@ const ArtEngine = (() => {
             for (let i = 0; i < 400; i++) dot(rand() * 1000, rand() * 1000, rand() * 1.1, color(0, 85, rand() * .35));
         }
         function crystals() {
-            const arms = 6;
+            const arms = [5, 6, 8][composition.variant];
             const layers = 12 + Math.round(c * 30);
             const rotation = rand() * TAU;
             for (let l = 0; l < layers; l++) {
@@ -218,8 +244,134 @@ const ArtEngine = (() => {
                 bolt(150 + rand() * 700, 80 + rand() * 100, Math.PI / 2 + (rand() - .5) * .8,
                     420 + rand() * 370, 2, 1 + rand() * 1.2);
         }
-        const renderers = {ribbons, flames, branches, orbits, crystals, lightning};
+        function lava() {
+            // Voronoi cells form cooled plates.
+            // The gaps between them become molten channels.
+            const sites = Array.from(
+                { length: 18 + Math.round(c * 30) },
+                () => [rand() * 1000, rand() * 1000]
+            );
+
+            const heat = ctx.createLinearGradient(0, 0, 1000, 1000);
+            heat.addColorStop(0, color(-10, 25));
+            heat.addColorStop(.5, color(10, 65));
+            heat.addColorStop(1, color(-5, 30));
+
+            ctx.fillStyle = heat;
+            ctx.fillRect(0, 0, 1000, 1000);
+
+            for (const site of sites) {
+                let polygon = [
+                    [0, 0],
+                    [1000, 0],
+                    [1000, 1000],
+                    [0, 1000]
+                ];
+
+                // Clip the canvas to the region nearest this site.
+                for (const other of sites) {
+                    if (site === other) continue;
+
+                    const nx = other[0] - site[0];
+                    const ny = other[1] - site[1];
+
+                    const limit = (
+                        other[0] ** 2 + other[1] ** 2 -
+                        site[0] ** 2 - site[1] ** 2
+                    ) / 2;
+
+                    const output = [];
+
+                    for (let i = 0; i < polygon.length; i++) {
+                        const a = polygon[i];
+                        const b = polygon[(i + 1) % polygon.length];
+
+                        const da = a[0] * nx + a[1] * ny - limit;
+                        const db = b[0] * nx + b[1] * ny - limit;
+
+                        if (da <= 0) output.push(a);
+
+                        if ((da <= 0) !== (db <= 0)) {
+                            const t = da / (da - db);
+
+                            output.push([
+                                a[0] + t * (b[0] - a[0]),
+                                a[1] + t * (b[1] - a[1])
+                            ]);
+                        }
+                    }
+
+                    polygon = output;
+                }
+
+                if (polygon.length < 3) continue;
+
+                // Shrink each plate to leave connected glowing gaps.
+                const shrink = .88 + rand() * .08;
+
+                const plate = polygon.map(point => [
+                    site[0] + (point[0] - site[0]) * shrink,
+                    site[1] + (point[1] - site[1]) * shrink
+                ]);
+
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.beginPath();
+                ctx.moveTo(...plate[0]);
+
+                for (const point of plate.slice(1)) {
+                    ctx.lineTo(...point);
+                }
+
+                ctx.closePath();
+                ctx.fillStyle = color(-10, 3 + rand() * 5);
+                ctx.fill();
+
+                ctx.globalCompositeOperation = 'screen';
+                glow([...plate, plate[0]], .7, 10, .5);
+            }
+
+            // Fine mineral texture.
+            for (let i = 0; i < 1600; i++) {
+                dot(
+                    rand() * 1000,
+                    rand() * 1000,
+                    rand() * .8,
+                    color(0, 35, .08)
+                );
+            }
+        }
+
+        function particles() {
+            for (let i = 0; i < 100 + c * 450; i++) {
+                const x = rand() * 1000;
+                const y = rand() * 1000;
+                const radius = .3 + rand() * 1.6;
+
+                dot(
+                    x, y, radius * 3,
+                    color((rand() - .5) * p.hueSpread, 60, .04 * p.glow)
+                );
+
+                dot(
+                    x, y, radius,
+                    color(10, 80, .15 + rand() * .5)
+                );
+            }
+        }
+        const renderers = {
+        ribbons, flames, branches, orbits, crystals, lightning, lava,
+        particles};
+
+        // Reposition, rotate, and scale the artwork as one composition.
+        ctx.save();
+        ctx.translate(composition.x, composition.y);
+        ctx.rotate(composition.rotation);
+        ctx.scale(composition.scale, composition.scale);
+        ctx.translate(-500, -500);
+
         (renderers[p.structure] || ribbons)();
+
+        ctx.restore();
         ctx.globalCompositeOperation = 'source-over';
         // Subtle vignette creates breathing room around the composition.
         const vignette = ctx.createRadialGradient(500, 500, 300, 500, 500, 720);
@@ -227,5 +379,48 @@ const ArtEngine = (() => {
         ctx.fillStyle = vignette; ctx.fillRect(0, 0, 1000, 1000);
         ctx.setTransform(1, 0, 0, 1, 0, 0);
     }
-    return {draw, version: '2.0.0'};
+    function compose(canvas, recipe) {
+        const layers = recipe.layers?.length
+            ? recipe.layers.slice(0, 3)
+            : [{
+                structure: recipe.structure,
+                opacity: 1,
+                hueShift: 0
+            }];
+
+        const target = canvas.getContext('2d');
+
+        target.setTransform(1, 0, 0, 1, 0, 0);
+        target.globalAlpha = 1;
+        target.globalCompositeOperation = 'source-over';
+        target.fillStyle = '#05080d';
+        target.fillRect(0, 0, canvas.width, canvas.height);
+
+        const buffer = document.createElement('canvas');
+        buffer.width = canvas.width;
+        buffer.height = canvas.height;
+
+        layers.forEach((layer, index) => {
+            draw(buffer, {
+                ...recipe,
+                structure: layer.structure,
+                seed: (Number(recipe.seed) + index * 104729) >>> 0,
+                baseHue: recipe.baseHue + (layer.hueShift || 0)
+            });
+
+            target.globalCompositeOperation =
+                index === 0 ? 'source-over' : 'screen';
+
+            target.globalAlpha = layer.opacity ?? 1;
+            target.drawImage(buffer, 0, 0);
+        });
+
+        target.globalAlpha = 1;
+        target.globalCompositeOperation = 'source-over';
+    }
+
+    return {
+        draw: compose,
+        version: '3.0.0'
+    };
 })();
