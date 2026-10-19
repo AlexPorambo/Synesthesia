@@ -1,426 +1,270 @@
-/* Synesthesia's procedural engine. No generated image API is used.
-   Coordinates are normalized to a 1000 × 1000 drawing space.
-   All randomness comes from a seeded generator. */
-'use strict';
-const ArtEngine = (() => {
-    const TAU = Math.PI * 2;
-    const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-    function randomFrom(seed) {
-        let state = seed >>> 0;
-        return () => {
-            state = (state + 0x6D2B79F5) >>> 0;
-            let t = Math.imul(state ^ (state >>> 15), state | 1);
-            t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-        };
-    }
-    // Smooth lattice noise, layered into fractional Brownian motion (fBm).
-    function makeNoise(seed) {
-        function hash(x, y) {
-            let n = Math.imul(x, 374761393) ^ Math.imul(y, 668265263) ^ seed;
-            n = Math.imul(n ^ (n >>> 13), 1274126177);
-            return ((n ^ (n >>> 16)) >>> 0) / 4294967295;
-        }
-        const smooth = t => t * t * (3 - 2 * t);
-        const lerp = (a, b, t) => a + (b - a) * t;
-        function noise(x, y) {
-            const ix = Math.floor(x), iy = Math.floor(y);
-            const u = smooth(x - ix), v = smooth(y - iy);
-            return lerp(lerp(hash(ix, iy), hash(ix + 1, iy), u),
-                lerp(hash(ix, iy + 1), hash(ix + 1, iy + 1), u), v);
-        }
-        return (x, y) => {
-            let sum = 0, amplitude = .57;
-            for (let k = 0; k < 4; k++) {
-                sum += amplitude * noise(x, y);
-                x = x * 2.03 + 19.4; y = y * 2.03 + 7.1; amplitude *= .47;
-            }
-            return sum;
-        };
-    }
-    function draw(canvas, input) {
-        const p = {...input};
-        const ctx = canvas.getContext('2d');
-        const rand = randomFrom(Number(p.seed) || 0);
-        const noise = makeNoise((Number(p.seed) || 0) ^ 0x13579);
-        const compositionRandom = randomFrom(
-            (Number(p.seed) || 0) ^ 0x6A09E667
-        );
-
-        const composition = {
-            x: 380 + compositionRandom() * 240,
-            y: 400 + compositionRandom() * 200,
-            rotation: (compositionRandom() - 0.5) * 0.8,
-            scale: 0.75 + compositionRandom() * 0.45,
-            density: 0.65 + compositionRandom() * 0.7,
-            variant: Math.floor(compositionRandom() * 3)
-        };
-        const c = p.complexity / 10, bend = p.curvature / 10;
-        const color = (offset = 0, light = 62, alpha = 1) =>
-            `hsla(${p.baseHue + offset}, ${p.saturation}%, ${light}%, ${alpha})`;
-        function path(points, width, stroke) {
-            if (points.length < 2) return;
-            ctx.beginPath(); ctx.moveTo(...points[0]);
-            for (let i = 1; i < points.length; i++) ctx.lineTo(...points[i]);
-            ctx.lineWidth = width; ctx.strokeStyle = stroke; ctx.stroke();
-        }
-        function glow(points, width, offset, alpha = .5) {
-            path(points, width * 7, color(offset, 48, alpha * .035 * p.glow));
-            path(points, width * 3, color(offset, 60, alpha * .09 * p.glow));
-            path(points, width, color(offset, 66, alpha));
-        }
-        function dot(x, y, r, stroke) {
-            ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fillStyle = stroke; ctx.fill();
-        }
-        ctx.setTransform(canvas.width / 1000, 0, 0, canvas.height / 1000, 0, 0);
-        ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
-        ctx.fillStyle = '#05080d'; ctx.fillRect(0, 0, 1000, 1000);
-        ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-        const haze = ctx.createRadialGradient(510, 520, 10, 510, 520, 660);
-        haze.addColorStop(0, color(0, 17, .18)); haze.addColorStop(1, '#05080d');
-        ctx.fillStyle = haze; ctx.fillRect(0, 0, 1000, 1000);
-        ctx.globalCompositeOperation = 'screen';
-
-        function ribbons() {
-            // Closely spaced trajectories form coherent bands, with noise
-            // bending them and a vortex adding rotational attraction.
-            const bands = 2 + Math.round(c * 7 * composition.density);
-            for (let b = 0; b < bands; b++) {
-                const y0 = 180 + b * 640 / bands + rand() * 70;
-                const phase = rand() * TAU, hue = (rand() - .5) * p.hueSpread;
-                const threads = 35 + Math.round(c * 60);
-                for (let t = 0; t < threads; t++) {
-                    let x = -30 + rand() * 20;
-                    let y = y0 + (t / threads - .5) * (25 + p.flow * 7);
-                    const pts = [];
-                    for (let j = 0; j < 430; j++) {
-                        pts.push([x, y]);
-                        const field = (noise(x * .0025, y * .0025) - .5) * 2;
-                        const wave = Math.sin(x * (.003 + p.flow * .0006) + phase);
-                        const orbit = Math.atan2(y - 500, x - 540) + Math.PI / 2;
-                        const angle = field * (1 + bend * 2.8) + wave * bend * .75;
-                        x += (Math.cos(angle) * (1 - p.swirl * .55) + Math.cos(orbit) * p.swirl * .55) * 3.4;
-                        y += (Math.sin(angle) * (1 - p.swirl * .55) + Math.sin(orbit) * p.swirl * .55) * 3.4;
-                        if (x > 1040 || y < -100 || y > 1100) break;
-                    }
-                    glow(pts, .4 + rand() * .55, hue + t / threads * 15, .18 + rand() * .23);
-                }
-            }
-        }
-        function flames() {
-            // Separate plumes rise from a source region. Width and opacity
-            // taper with height; noise introduces coherent turbulence.
-            const plumes = 2 + Math.round(c * 8 * composition.density);
-            const sourceWidth = 100 + rand() * 500;
-            const sourceCenter = 350 + rand() * 300;
-            for (let b = 0; b < plumes; b++) {
-                const center = sourceCenter + (rand() - 0.5) * sourceWidth;
-                const height = 250 + rand() * 590;
-                const spread = 20 + rand() * 90, hue = (rand() - .5) * p.hueSpread;
-                const threads = 30 + Math.round(c * 55);
-                const phase = rand() * TAU;
-                for (let t = 0; t < threads; t++) {
-                    const offset = (t / threads - .5) * spread;
-                    const pts = [];
-                    for (let j = 0; j <= 150; j++) {
-                        const u = j / 150, y = 920 - u * height;
-                        const turbulence = (noise(u * (2 + p.flow * .3), b * 3.7) - .5);
-                        const x = center + offset * (1 - u) ** .7
-                            + Math.sin(u * 7 + phase) * (15 + bend * 55) * u
-                            + turbulence * 120 * bend * u;
-                        pts.push([x, y]);
-                    }
-                    // Segment groups make brightness and width fade upward.
-                    for (let k = 0; k < 15; k++) {
-                        const u = k / 15;
-                        glow(pts.slice(k * 10, k * 10 + 11), .5 + (1 - u) * 1.3,
-                            hue - u * 15, .22 * (1 - u) + .035);
-                    }
-                }
-            }
-            for (let i = 0; i < 120 + c * 240; i++) {
-                const y = 150 + rand() * 700;
-                dot(240 + rand() * 530, y, .3 + rand(), color(15, 78, rand() * .45));
-            }
-        }
-        function branches() {
-            // Recursive branching: the depth is capped to bound work.
-            const depth = 7 + Math.round(c * 3);
-            function branch(x, y, angle, len, level, hue) {
-                if (!level || len < 1.4) return;
-                const twist = (rand() - .5) * bend * .32;
-                const endX = x + Math.cos(angle + twist) * len;
-                const endY = y + Math.sin(angle + twist) * len;
-                const mid = [(x + endX) / 2 + Math.sin(angle) * len * .1,
-                    (y + endY) / 2 - Math.cos(angle) * len * .1];
-                glow([[x, y], mid, [endX, endY]], .2 + level * .19, hue, .4 + level * .025);
-                const spread = .23 + bend * .55;
-                branch(endX, endY, angle - spread * (.7 + rand() * .6), len * (.65 + rand() * .12), level - 1, hue - 2);
-                branch(endX, endY, angle + spread * (.7 + rand() * .6), len * (.65 + rand() * .12), level - 1, hue + 2);
-                if (level <= 2) dot(endX, endY, .6 + rand(), color(hue, 76, .35));
-            }
-            const roots = 2 + Math.round(c * 7 * composition.density);
-            const radial = composition.variant === 1;
-
-            for (let i = 0; i < roots; i++) {
-                const x = radial ? 500 : 100 + rand() * 800;
-                const y = radial ? 500 : 820 + rand() * 120;
-
-                const angle = radial
-                    ? i / roots * TAU
-                    : -Math.PI / 2 + (rand() - 0.5) * 0.8;
-
-                branch(x,y,angle,80 + rand() * 90,depth,(rand() - 0.5) * p.hueSpread);
-            }
-        }
-        function orbits() {
-            const count = 90 + Math.round(c * 230);
-            const orbitTilt = rand() * Math.PI;
-            const orbitFlattening = 0.2 + rand() * 0.75;
-            const orbitWobble = 4 + rand() * 28;
-            for (let i = 0; i < count; i++) {
-                const radius = 70 + i / count * 340;
-                const tilt = orbitTilt;
-                const phase = rand() * TAU, pts = [];
-                const hue = (i / count - .5) * p.hueSpread;
-                for (let j = 0; j <= 400; j++) {
-                    const a = j / 400 * TAU;
-                    const r = radius + Math.sin(a * (2 + Math.round(p.flow / 2)) + phase) * orbitWobble;                    
-                    const xx = Math.cos(a) * r;
-                    const yy = Math.sin(a) * r * orbitFlattening;                    
-                    pts.push([500 + xx * Math.cos(tilt) - yy * Math.sin(tilt),
-                        500 + xx * Math.sin(tilt) + yy * Math.cos(tilt)]);
-                }
-                glow(pts, .5, hue, .32);
-            }
-            for (let i = 0; i < 400; i++) dot(rand() * 1000, rand() * 1000, rand() * 1.1, color(0, 85, rand() * .35));
-        }
-        function crystals() {
-            const arms = [5, 6, 8][composition.variant];
-            const layers = 12 + Math.round(c * 30);
-            const rotation = rand() * TAU;
-            for (let l = 0; l < layers; l++) {
-                const radius = 35 + l / layers * 395, pts = [];
-                const hue = (l / layers - .5) * p.hueSpread;
-                const skew = (noise(l * .15, 5) - .5) * bend * .25;
-                for (let a = 0; a <= arms; a++) {
-                    const angle = a / arms * TAU + rotation + skew;
-                    pts.push([500 + Math.cos(angle) * radius, 500 + Math.sin(angle) * radius]);
-                }
-                glow(pts, .6 + rand() * .5, hue, .25);
-                for (let a = 0; a < arms; a++) {
-                    const angle = a / arms * TAU + rotation;
-                    const tip = [500 + Math.cos(angle) * radius, 500 + Math.sin(angle) * radius];
-                    const tangent = angle + Math.PI / 2;
-                    for (const sign of [-1, 1]) {
-                        const length = radius * (.08 + p.flow * .008);
-                        glow([tip, [tip[0] + Math.cos(tangent + sign * .5) * length * sign,
-                            tip[1] + Math.sin(tangent + sign * .5) * length * sign]], .6, hue, .4);
-                    }
-                }
-            }
-            for (let a = 0; a < arms; a++) {
-                const angle = a / arms * TAU + rotation;
-                glow([[500, 500], [500 + Math.cos(angle) * 450, 500 + Math.sin(angle) * 450]], 1, 0, .65);
-            }
-        }
-        function lightning() {
-            function bolt(x, y, angle, len, depth, width) {
-                const pts = [[x, y]];
-                const segments = 18;
-                for (let j = 1; j <= segments; j++) {
-                    const dist = j / segments * len, jitter = (rand() - .5) * (12 + bend * 45);
-                    pts.push([x + Math.cos(angle) * dist + Math.cos(angle + Math.PI / 2) * jitter,
-                        y + Math.sin(angle) * dist + Math.sin(angle + Math.PI / 2) * jitter]);
-                }
-                glow(pts, width, (rand() - .5) * p.hueSpread, .8);
-                path(pts, width * .25, 'rgba(225,245,255,.7)');
-                if (depth > 0) for (let b = 0; b < 2; b++) {
-                    const point = pts[5 + Math.floor(rand() * 10)];
-                    bolt(...point, angle + (rand() - .5) * 1.6, len * .4, depth - 1, width * .55);
-                }
-            }
-            for (let i = 0; i < 2 + Math.round(c * 5); i++)
-                bolt(150 + rand() * 700, 80 + rand() * 100, Math.PI / 2 + (rand() - .5) * .8,
-                    420 + rand() * 370, 2, 1 + rand() * 1.2);
-        }
-        function lava() {
-            // Voronoi cells form cooled plates.
-            // The gaps between them become molten channels.
-            const sites = Array.from(
-                { length: 18 + Math.round(c * 30) },
-                () => [rand() * 1000, rand() * 1000]
-            );
-
-            const heat = ctx.createLinearGradient(0, 0, 1000, 1000);
-            heat.addColorStop(0, color(-10, 25));
-            heat.addColorStop(.5, color(10, 65));
-            heat.addColorStop(1, color(-5, 30));
-
-            ctx.fillStyle = heat;
-            ctx.fillRect(0, 0, 1000, 1000);
-
-            for (const site of sites) {
-                let polygon = [
-                    [0, 0],
-                    [1000, 0],
-                    [1000, 1000],
-                    [0, 1000]
-                ];
-
-                // Clip the canvas to the region nearest this site.
-                for (const other of sites) {
-                    if (site === other) continue;
-
-                    const nx = other[0] - site[0];
-                    const ny = other[1] - site[1];
-
-                    const limit = (
-                        other[0] ** 2 + other[1] ** 2 -
-                        site[0] ** 2 - site[1] ** 2
-                    ) / 2;
-
-                    const output = [];
-
-                    for (let i = 0; i < polygon.length; i++) {
-                        const a = polygon[i];
-                        const b = polygon[(i + 1) % polygon.length];
-
-                        const da = a[0] * nx + a[1] * ny - limit;
-                        const db = b[0] * nx + b[1] * ny - limit;
-
-                        if (da <= 0) output.push(a);
-
-                        if ((da <= 0) !== (db <= 0)) {
-                            const t = da / (da - db);
-
-                            output.push([
-                                a[0] + t * (b[0] - a[0]),
-                                a[1] + t * (b[1] - a[1])
-                            ]);
-                        }
-                    }
-
-                    polygon = output;
-                }
-
-                if (polygon.length < 3) continue;
-
-                // Shrink each plate to leave connected glowing gaps.
-                const shrink = .88 + rand() * .08;
-
-                const plate = polygon.map(point => [
-                    site[0] + (point[0] - site[0]) * shrink,
-                    site[1] + (point[1] - site[1]) * shrink
-                ]);
-
-                ctx.globalCompositeOperation = 'source-over';
-                ctx.beginPath();
-                ctx.moveTo(...plate[0]);
-
-                for (const point of plate.slice(1)) {
-                    ctx.lineTo(...point);
-                }
-
-                ctx.closePath();
-                ctx.fillStyle = color(-10, 3 + rand() * 5);
-                ctx.fill();
-
-                ctx.globalCompositeOperation = 'screen';
-                glow([...plate, plate[0]], .7, 10, .5);
-            }
-
-            // Fine mineral texture.
-            for (let i = 0; i < 1600; i++) {
-                dot(
-                    rand() * 1000,
-                    rand() * 1000,
-                    rand() * .8,
-                    color(0, 35, .08)
-                );
-            }
-        }
-
-        function particles() {
-            for (let i = 0; i < 100 + c * 450; i++) {
-                const x = rand() * 1000;
-                const y = rand() * 1000;
-                const radius = .3 + rand() * 1.6;
-
-                dot(
-                    x, y, radius * 3,
-                    color((rand() - .5) * p.hueSpread, 60, .04 * p.glow)
-                );
-
-                dot(
-                    x, y, radius,
-                    color(10, 80, .15 + rand() * .5)
-                );
-            }
-        }
-        const renderers = {
-        ribbons, flames, branches, orbits, crystals, lightning, lava,
-        particles};
-
-        // Reposition, rotate, and scale the artwork as one composition.
-        ctx.save();
-        ctx.translate(composition.x, composition.y);
-        ctx.rotate(composition.rotation);
-        ctx.scale(composition.scale, composition.scale);
-        ctx.translate(-500, -500);
-
-        (renderers[p.structure] || ribbons)();
-
-        ctx.restore();
-        ctx.globalCompositeOperation = 'source-over';
-        // Subtle vignette creates breathing room around the composition.
-        const vignette = ctx.createRadialGradient(500, 500, 300, 500, 500, 720);
-        vignette.addColorStop(0, 'rgba(0,0,0,0)'); vignette.addColorStop(1, 'rgba(0,0,0,.72)');
-        ctx.fillStyle = vignette; ctx.fillRect(0, 0, 1000, 1000);
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
-    }
-    function compose(canvas, recipe) {
-        const layers = recipe.layers?.length
-            ? recipe.layers.slice(0, 3)
-            : [{
-                structure: recipe.structure,
-                opacity: 1,
-                hueShift: 0
-            }];
-
-        const target = canvas.getContext('2d');
-
-        target.setTransform(1, 0, 0, 1, 0, 0);
-        target.globalAlpha = 1;
-        target.globalCompositeOperation = 'source-over';
-        target.fillStyle = '#05080d';
-        target.fillRect(0, 0, canvas.width, canvas.height);
-
-        const buffer = document.createElement('canvas');
-        buffer.width = canvas.width;
-        buffer.height = canvas.height;
-
-        layers.forEach((layer, index) => {
-            draw(buffer, {
-                ...recipe,
-                structure: layer.structure,
-                seed: (Number(recipe.seed) + index * 104729) >>> 0,
-                baseHue: recipe.baseHue + (layer.hueShift || 0)
-            });
-
-            target.globalCompositeOperation =
-                index === 0 ? 'source-over' : 'screen';
-
-            target.globalAlpha = layer.opacity ?? 1;
-            target.drawImage(buffer, 0, 0);
-        });
-
-        target.globalAlpha = 1;
-        target.globalCompositeOperation = 'source-over';
-    }
-
-    return {
-        draw: compose,
-        version: '3.0.0'
+/* Shared, continuous flow field; audio modulates motion rather than replacing it. */
+"use strict";
+window.Visualizer = class {
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext("2d", { alpha: false });
+    this.time = 0;
+    this.last = 0;
+    this.paused = false;
+    this.features = { bass: 0, mid: 0, high: 0, energy: 0, pulse: 0 };
+    this.config = {
+      speed: 0.7,
+      density: 0.55,
+      distortion: 0.45,
+      transition: 0.35,
+      palette: 0,
+      patterns: new Set(["honeycomb", "mesh", "orbits"]),
     };
-})();
+    this.layerAlpha = { honeycomb: 1, mesh: 1, orbits: 1, wave: 0 };
+    this.hues = [155, 190, 260];
+    this.palettes = [
+      [155, 190, 260],
+      [25, 345, 290],
+      [210, 260, 175],
+      [285, 330, 220],
+      [40, 10, 330],
+    ];
+    this.resize = () => {
+      this.w = innerWidth;
+      this.h = innerHeight;
+      const d = Math.min(devicePixelRatio || 1, 2);
+      canvas.width = this.w * d;
+      canvas.height = this.h * d;
+      this.ctx.setTransform(d, 0, 0, d, 0, 0);
+    };
+    addEventListener("resize", this.resize);
+    this.resize();
+    this.frame = this.frame.bind(this);
+    requestAnimationFrame(this.frame);
+  }
+  frame(now) {
+    const dt = Math.min((now - (this.last || now)) / 1000, 0.05);
+    this.last = now;
+    if (!document.hidden && !this.paused) {
+      this.time += dt * (0.12 + this.config.speed * 1.4);
+      for (const key of Object.keys(this.layerAlpha))
+        this.layerAlpha[key] +=
+          ((this.config.patterns.has(key) ? 1 : 0) - this.layerAlpha[key]) *
+          (1 - Math.exp(-dt * 2));
+      const target = this.palettes[this.config.palette];
+      for (let i = 0; i < 3; i++)
+        this.hues[i] +=
+          (((target[i] - this.hues[i] + 540) % 360) - 180) *
+          (1 - Math.exp(-dt * 1.2));
+      if (this.analyze) this.analyze(dt);
+      this.draw();
+    }
+    requestAnimationFrame(this.frame);
+  }
+  color(i, alpha = 1) {
+    const p = this.hues;
+    return `hsla(${p[i % p.length] + Math.sin(this.time * 0.07) * 18 + (this.features.mood || 0) * 35},72%,${i === 0 ? 66 : 60}%,${alpha})`;
+  }
+  point(x, y, t) {
+    const f = this.features,
+      d = this.config.distortion;
+    return [
+      x + Math.sin(y * 0.004 + t * 0.4) * (20 + d * 65 + f.mid * 55),
+      y + Math.cos(x * 0.004 - t * 0.28) * (15 + d * 50 + f.bass * 45),
+    ];
+  }
+  draw() {
+    const c = this.ctx,
+      w = this.w,
+      h = this.h,
+      t = this.time,
+      f = this.features;
+    c.globalCompositeOperation = "source-over";
+    c.fillStyle = "#070c14";
+    c.fillRect(0, 0, w, h);
+    const cx = w * 0.64,
+      cy = h * 0.49,
+      rad = Math.max(w, h) * 0.62;
+    let bg = c.createRadialGradient(cx, cy, 0, cx, cy, rad);
+    bg.addColorStop(0, this.color(0, 0.1 + f.energy * 0.07));
+    bg.addColorStop(0.55, this.color(2, 0.035));
+    bg.addColorStop(1, "#070c14");
+    c.fillStyle = bg;
+    c.fillRect(0, 0, w, h);
+    c.save();
+    c.translate(cx, cy);
+    c.rotate(Math.sin(t * 0.07) * 0.17);
+    c.translate(-cx, -cy);
+    c.globalCompositeOperation = "screen";
+    const phase = t * (0.025 + this.config.transition * 0.13);
+    const weight = (i) => 0.28 + 0.72 * (0.5 + 0.5 * Math.sin(phase + i * 2.1));
+    if (this.layerAlpha.honeycomb > 0.005)
+      this.honeycomb(t, weight(0) * this.layerAlpha.honeycomb);
+    if (this.layerAlpha.mesh > 0.005)
+      this.mesh(t, weight(1) * this.layerAlpha.mesh);
+    if (this.layerAlpha.orbits > 0.005)
+      this.orbits(t, weight(2) * this.layerAlpha.orbits);
+    if (this.layerAlpha.wave > 0.005) {
+      c.globalAlpha = this.layerAlpha.wave;
+      this.wave(t);
+      c.globalAlpha = 1;
+    }
+    this.dust(t);
+    if (f.pulse > 0.02) {
+      c.beginPath();
+      c.arc(cx, cy, (1 - f.pulse) * Math.max(w, h) * 0.8 + 40, 0, Math.PI * 2);
+      c.strokeStyle = this.color(0, f.pulse * 0.3);
+      c.lineWidth = 1 + f.bass * 2;
+      c.stroke();
+    }
+    c.restore();
+  }
+  honeycomb(t, a) {
+    const c = this.ctx,
+      r = 48 - this.config.density * 24,
+      dx = r * 1.732,
+      dy = r * 1.5;
+    c.lineWidth = 0.7;
+    for (let row = -2; row < this.h / dy + 2; row++)
+      for (let col = -2; col < this.w / dx + 2; col++) {
+        const x = col * dx + ((row % 2) * dx) / 2,
+          y = row * dy;
+        const wave = 0.5 + 0.5 * Math.sin(x * 0.004 + y * 0.003 - t * 0.3);
+        c.strokeStyle = this.color(0, a * (0.05 + wave * 0.19));
+        c.beginPath();
+        for (let k = 0; k < 6; k++) {
+          const ang = ((k * 60 - 30) * Math.PI) / 180;
+          const rr = r * (1 + this.features.bass * 0.15);
+          const p = this.point(
+            x + Math.cos(ang) * rr,
+            y + Math.sin(ang) * rr,
+            t,
+          );
+          k ? c.lineTo(...p) : c.moveTo(...p);
+        }
+        c.closePath();
+        c.stroke();
+      }
+  }
+  mesh(t, a) {
+    const c = this.ctx,
+      s = 120 - this.config.density * 65,
+      cols = Math.ceil(this.w / s) + 3,
+      rows = Math.ceil(this.h / s) + 3,
+      points = [];
+    for (let j = 0; j < rows; j++) {
+      points[j] = [];
+      for (let i = 0; i < cols; i++) {
+        let x = (i - 1) * s + (j % 2) * s * 0.5,
+          y = (j - 1) * s;
+        const p = this.point(
+          x + Math.sin(j * 2 + i + t * 0.2) * s * 0.17,
+          y + Math.cos(i * 2 + j + t * 0.16) * s * 0.18,
+          t + 3,
+        );
+        points[j][i] = p;
+      }
+    }
+    c.lineWidth = 0.6;
+    for (let j = 0; j < rows - 1; j++)
+      for (let i = 0; i < cols - 1; i++) {
+        const p = points[j][i],
+          q = points[j][i + 1],
+          r = points[j + 1][i];
+        const glow = 0.5 + 0.5 * Math.sin(i * 0.7 + j * 0.8 - t * 0.25);
+        c.strokeStyle = this.color(
+          1,
+          a * (0.06 + glow * 0.23 + this.features.high * 0.16),
+        );
+        c.beginPath();
+        c.moveTo(...p);
+        c.lineTo(...q);
+        c.lineTo(...r);
+        c.closePath();
+        c.stroke();
+        if (glow > 0.9) {
+          c.fillStyle = this.color(1, 0.4 + this.features.high * 0.4);
+          c.beginPath();
+          c.arc(...p, 1 + this.features.high * 1.5, 0, Math.PI * 2);
+          c.fill();
+        }
+      }
+  }
+  orbits(t, a) {
+    const c = this.ctx,
+      cx = this.w * 0.65,
+      cy = this.h * 0.5,
+      size = Math.min(this.w, this.h) * 0.35,
+      count = 12 + Math.floor(this.config.density * 28);
+    c.save();
+    c.translate(cx, cy);
+    c.rotate(t * 0.045);
+    for (let i = 0; i < count; i++) {
+      const k = i / count,
+        r = size * (0.35 + k * 0.85) * (1 + this.features.bass * 0.14),
+        tilt = Math.sin(t * 0.13 + k * 3) * 0.6;
+      c.beginPath();
+      for (let n = 0; n <= 120; n++) {
+        const ang = (n / 120) * Math.PI * 2;
+        const wobble =
+          1 +
+          Math.sin(ang * 3 + t * 0.4 + k * 6) * this.config.distortion * 0.08;
+        const x = Math.cos(ang) * r * wobble,
+          y =
+            Math.sin(ang) *
+            r *
+            (0.4 + 0.2 * Math.sin(k * 4 + t * 0.09)) *
+            wobble;
+        const xx = x * Math.cos(tilt) - y * Math.sin(tilt),
+          yy = x * Math.sin(tilt) + y * Math.cos(tilt);
+        n ? c.lineTo(xx, yy) : c.moveTo(xx, yy);
+      }
+      c.strokeStyle = this.color(i % 3, a * (0.12 + (1 - k) * 0.25));
+      c.lineWidth = i % 7 === 0 ? 1.4 : 0.65;
+      c.stroke();
+    }
+    c.restore();
+  }
+  wave(t) {
+    const c = this.ctx;
+    c.beginPath();
+    for (let i = 0; i <= 512; i++) {
+      const x = (i / 512) * this.w;
+      const v =
+        this.audioActive && this.waveform
+          ? (this.waveform[
+              Math.min(
+                this.waveform.length - 1,
+                Math.floor((i / 512) * this.waveform.length),
+              )
+            ] -
+              128) /
+            128
+          : Math.sin(i * 0.035 + t) * 0.35 * Math.sin(i * 0.007 + t * 0.2);
+      const y = this.h * 0.52 + v * this.h * 0.2;
+      i ? c.lineTo(x, y) : c.moveTo(x, y);
+    }
+    c.strokeStyle = this.color(0, 0.8);
+    c.shadowColor = this.color(0);
+    c.shadowBlur = 12;
+    c.lineWidth = 1.5;
+    c.stroke();
+    c.shadowBlur = 0;
+  }
+  dust(t) {
+    const c = this.ctx;
+    for (let i = 0; i < 65 + this.config.density * 90; i++) {
+      const x =
+          ((((Math.sin(i * 127.1) * 43758.5) % 1) + 1) * this.w +
+            t * (2 + (i % 4))) %
+          this.w,
+        y =
+          ((((Math.sin(i * 311.7) * 19341.3) % 1) + 1) * this.h +
+            Math.sin(t * 0.1 + i) * 18) %
+          this.h;
+      c.fillStyle = this.color(
+        i % 3,
+        (0.15 + 0.2 * Math.sin(t * 0.5 + i) ** 2) * (1 + this.features.high),
+      );
+      c.beginPath();
+      c.arc(x, y, i % 9 === 0 ? 1.3 : 0.6, 0, Math.PI * 2);
+      c.fill();
+    }
+  }
+};
