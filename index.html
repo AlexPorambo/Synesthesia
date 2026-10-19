@@ -1,0 +1,1370 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Synesthesia — Motion & Sound</title>
+
+<style>
+:root {
+    font-family: Arial, sans-serif;
+    color: #edf0e9;
+    background: #101310;
+    color-scheme: dark;
+    --accent: #d1edb2;
+    --muted: #9aaa94;
+    --border: #36412f;
+}
+* { box-sizing: border-box; }
+body { margin: 0; }
+header {
+    padding: 24px 4vw;
+    border-bottom: 1px solid var(--border);
+    letter-spacing: .16em;
+}
+header strong { font-size: 19px; }
+header small {
+    display: block;
+    color: var(--muted);
+    font-size: 9px;
+    margin-top: 8px;
+}
+main {
+    max-width: 1550px;
+    padding: 28px 4vw;
+    margin: auto;
+}
+h1 {
+    font-size: clamp(34px,4vw,56px);
+    font-weight: 400;
+    letter-spacing: -.05em;
+    margin: 10px 0;
+}
+p {
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.6;
+}
+.layout {
+    display: grid;
+    grid-template-columns: 280px minmax(0,1fr);
+    gap: 24px;
+    margin-top: 28px;
+    align-items: start;
+}
+aside {
+    padding: 21px;
+    background: #191e18;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+}
+h2 {
+    font-size: 10px;
+    letter-spacing: .13em;
+    color: #c5d4b9;
+    margin: 0 0 13px;
+}
+.section {
+    border-top: 1px solid var(--border);
+    padding-top: 20px;
+    margin-top: 20px;
+}
+button, input { font: inherit; }
+button, .file {
+    border: 1px solid #46523d;
+    background: #263121;
+    color: #e2ecd9;
+    border-radius: 7px;
+    padding: 10px 12px;
+    font-size: 12px;
+    cursor: pointer;
+}
+button:hover { background: #35482c; }
+button:disabled { opacity: .5; cursor: wait; }
+.primary, button.active {
+    background: var(--accent);
+    color: #17200f;
+}
+.sources { display: grid; gap: 8px; }
+.file { display: block; }
+.file input {
+    display: block;
+    width: 100%;
+    font-size: 10px;
+    margin-top: 8px;
+}
+.help { font-size: 11px; }
+.control {
+    display: block;
+    font-size: 11px;
+    color: #c2d0b8;
+    margin-top: 17px;
+}
+.control output { float: right; color: var(--accent); }
+input[type=range] {
+    display: block;
+    width: 100%;
+    margin-top: 9px;
+    accent-color: var(--accent);
+}
+.check {
+    font-size: 12px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 14px;
+}
+.check input { accent-color: var(--accent); }
+#patterns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 7px;
+}
+#patterns button {
+    font-size: 11px;
+    padding: 10px 5px;
+}
+#palettes { display: flex; gap: 8px; flex-wrap: wrap; }
+#palettes button {
+    width: 33px;
+    height: 26px;
+    padding: 0;
+    border: 2px solid transparent;
+    border-radius: 20px;
+}
+#palettes .active { border-color: white; }
+.stage {
+    background: #05080e;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    position: sticky;
+    top: 16px;
+    min-width: 0;
+}
+.toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 13px;
+    background: #171d16;
+    border-bottom: 1px solid var(--border);
+}
+#sceneName { font-size: 10px; letter-spacing: .13em; }
+.tools { display: flex; gap: 6px; flex-wrap: wrap; }
+.tools button { padding: 7px 9px; font-size: 11px; }
+.screen {
+    height: 65vh;
+    min-height: 370px;
+    max-height: 850px;
+}
+canvas { display: block; width: 100%; height: 100%; }
+.status {
+    padding: 13px 16px;
+    border-top: 1px solid var(--border);
+    background: #121910;
+    font-size: 11px;
+    color: #becdb4;
+    overflow-wrap: anywhere;
+}
+.meters { display: flex; gap: 12px; margin-top: 12px; }
+.meters > div { flex: 1; font-size: 9px; color: var(--muted); }
+.track { height: 3px; background: #303d2a; margin-top: 6px; }
+.fill { height: 100%; background: var(--accent); width: 0; }
+#error { font-size: 12px; color: #ffbc98; }
+#error:empty { display: none; }
+audio { width: 100%; height: 34px; margin-top: 12px; }
+.hidden-controls .layout { grid-template-columns: 1fr; }
+.hidden-controls aside { display: none; }
+.stage:fullscreen {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    border: 0;
+    border-radius: 0;
+}
+.stage:fullscreen .screen {
+    flex: 1;
+    height: auto;
+    min-height: 0;
+    max-height: none;
+}
+.stage:fullscreen .meters { display: none; }
+footer {
+    border-top: 1px solid var(--border);
+    margin-top: 28px;
+    padding-top: 18px;
+    font-size: 9px;
+    letter-spacing: .1em;
+    color: var(--muted);
+}
+[hidden] { display: none !important; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+@media (max-width:740px) {
+    main { padding: 22px 16px; }
+    .layout { grid-template-columns: 1fr; }
+    .stage { order: 0; position: static; }
+    aside { order: 1; }
+    .screen { height: 52vh; min-height: 300px; }
+}
+</style>
+</head>
+
+<body>
+<header>
+    <strong>SYNESTHESIA</strong>
+    <small>MOTION & SOUND / GENERATIVE STUDIO</small>
+</header>
+
+<main>
+<h1>See what sound can become.</h1>
+<p>
+    Evolving geometry, shifting color, and motion shaped by music.
+    The ambient canvas starts automatically.
+</p>
+
+<div class="layout">
+    <aside id="sidebar">
+        <h2>01 / AUDIO SOURCE</h2>
+
+        <div class="sources">
+            <button id="capture" class="primary">
+                Capture tab / system audio
+            </button>
+            <button id="mic">Use microphone</button>
+
+            <label class="file">
+                Open a music file
+                <input id="file" type="file" accept="audio/*">
+            </label>
+
+            <button id="ambient">Ambient / disconnect</button>
+        </div>
+
+        <audio id="player" controls hidden></audio>
+
+        <p class="help">
+            For streaming music, start playback in another tab,
+            capture that tab, and enable <b>Share audio</b>.
+            Desktop-app capture requires a system-audio option
+            in the browser picker. Some sources cannot share audio.
+        </p>
+
+        <p id="error" role="alert"></p>
+
+        <div class="section">
+            <h2>02 / PATTERN SYSTEM</h2>
+            <div id="patterns"></div>
+
+            <label class="check">
+                <input id="auto" type="checkbox" checked>
+                Automatically evolve scenes
+            </label>
+
+            <label class="control">
+                Scene interval
+                <output id="intervalValue">24 s</output>
+                <input id="interval" type="range"
+                       min="10" max="60" value="24">
+            </label>
+        </div>
+
+        <div class="section">
+            <h2>03 / COLOR & MOTION</h2>
+            <div id="palettes"></div>
+
+            <label class="control">
+                Motion speed
+                <output id="speedValue">1.0×</output>
+                <input id="speed" type="range"
+                       min=".2" max="2.5" step=".1" value="1">
+            </label>
+
+            <label class="control">
+                Pattern density
+                <output id="densityValue">1.0×</output>
+                <input id="density" type="range"
+                       min=".5" max="1.6" step=".1" value="1">
+            </label>
+
+            <label class="control">
+                Audio sensitivity
+                <output id="sensitivityValue">1.0×</output>
+                <input id="sensitivity" type="range"
+                       min=".3" max="3" step=".1" value="1">
+            </label>
+
+            <p class="help">
+                M: controls · F: fullscreen · N: next scene ·
+                Space: pause visuals
+            </p>
+        </div>
+    </aside>
+
+    <section class="stage" id="stage">
+        <div class="toolbar">
+            <span id="sceneName">HONEYCOMB / LIVE CANVAS</span>
+
+            <div class="tools">
+                <button id="evolve">Evolve ↗</button>
+                <button id="pause">Pause</button>
+                <button id="menu"
+                        aria-expanded="true"
+                        aria-controls="sidebar">
+                    Hide controls
+                </button>
+                <button id="fullscreen">Fullscreen</button>
+            </div>
+        </div>
+
+        <div class="screen" id="screen">
+            <canvas id="canvas"
+                    aria-label="Live procedural visualizer"></canvas>
+        </div>
+
+        <div class="status">
+            <span id="status" role="status">
+                Ambient · no audio connected
+            </span>
+
+            <div class="meters">
+                <div>
+                    BASS
+                    <div class="track">
+                        <div class="fill" id="bassMeter"></div>
+                    </div>
+                </div>
+                <div>
+                    MIDS
+                    <div class="track">
+                        <div class="fill" id="midMeter"></div>
+                    </div>
+                </div>
+                <div>
+                    TREBLE
+                    <div class="track">
+                        <div class="fill" id="highMeter"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<footer>
+    DRAWN WITH MATHEMATICS. MOVED BY MUSIC. ·
+    LOCAL ANALYSIS · NO AI OR ACCOUNT REQUIRED
+</footer>
+</main>
+
+<script>
+'use strict';
+
+const $ = id => document.getElementById(id);
+const canvas = $('canvas');
+const c = canvas.getContext('2d');
+const player = $('player');
+const TAU = Math.PI * 2;
+
+const names = [
+    'Honeycomb',
+    'Triangle mesh',
+    'Orbital drift',
+    'Shape current',
+    'Liquid lines',
+    'Radial spectrum'
+];
+
+const palettes = [
+    [155, 190, 275],
+    [95, 135, 175],
+    [5, 28, 55],
+    [185, 220, 265],
+    [0, 70, 150, 210, 285, 330]
+];
+
+const paletteNames = [
+    'Aurora', 'Console', 'Ember', 'Ocean', 'Prism'
+];
+
+let W = 800;
+let H = 600;
+let D = 1;
+let t = 0;
+let last = 0;
+let paused = false;
+let speed = 1;
+let density = 1;
+let sensitivity = 1;
+let interval = 24;
+let clock = 0;
+let palette = 0;
+let oldPalette = 0;
+let paletteMix = 1;
+let transition = null;
+
+const buffer = document.createElement('canvas');
+const bc = buffer.getContext('2d');
+
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const smooth = v => v * v * (3 - 2 * v);
+
+function rng(seed) {
+    return () => {
+        seed = (seed + 0x6D2B79F5) >>> 0;
+        let n = Math.imul(seed ^ (seed >>> 15), seed | 1);
+        n ^= n + Math.imul(n ^ (n >>> 7), n | 61);
+        return ((n ^ (n >>> 14)) >>> 0) / 4294967296;
+    };
+}
+
+function makeScene(type) {
+    const random = rng(
+        crypto.getRandomValues(new Uint32Array(1))[0]
+    );
+
+    const s = {
+        type,
+        random,
+        phase: random() * TAU,
+        spacing: 40 + random() * 25,
+        tilt: random(),
+        objects: [],
+        emit: 0
+    };
+
+    for (let i = 0; i < 30; i++) {
+        s.objects.push(makeObject(s, true));
+    }
+
+    return s;
+}
+
+function makeObject(s, initial = false) {
+    const r = s.random;
+    const life = 6 + r() * 8;
+
+    return {
+        x: r(),
+        y: initial ? r() : 1.1,
+        age: initial ? r() * life : 0,
+        life,
+        size: 12 + r() * 55,
+        vx: (r() - .5) * .04,
+        vy: -.035 - r() * .06,
+        rotation: r() * TAU,
+        spin: (r() - .5) * .6,
+        a: [0, 3, 4, 6][Math.floor(r() * 4)],
+        b: [0, 3, 4, 6][Math.floor(r() * 4)],
+        h: r() * 5
+    };
+}
+
+let scene = makeScene(0);
+
+function resize() {
+    const box = canvas.getBoundingClientRect();
+
+    W = Math.max(1, box.width);
+    H = Math.max(1, box.height);
+    D = Math.min(devicePixelRatio || 1, 1.6);
+
+    let frozen;
+
+    if (paused) {
+        frozen = document.createElement('canvas');
+        frozen.width = canvas.width;
+        frozen.height = canvas.height;
+        frozen.getContext('2d').drawImage(canvas, 0, 0);
+    }
+
+    canvas.width = buffer.width = Math.round(W * D);
+    canvas.height = buffer.height = Math.round(H * D);
+
+    if (frozen) {
+        c.drawImage(frozen, 0, 0, canvas.width, canvas.height);
+    }
+}
+
+function color(index, alpha = .6, light = 62) {
+    const get = p => {
+        const list = palettes[p];
+        const i = (
+            (Math.floor(index) % list.length) + list.length
+        ) % list.length;
+
+        return list[i];
+    };
+
+    const a = get(oldPalette);
+    const b = get(palette);
+    const difference = ((b - a + 540) % 360) - 180;
+    const hue = a + difference * smooth(paletteMix) + t * 3;
+
+    return `hsla(${hue},85%,${light}%,${clamp(alpha, 0, 1)})`;
+}
+
+function path(ctx, points, width, stroke) {
+    ctx.beginPath();
+    ctx.moveTo(...points[0]);
+
+    for (let i = 1; i < points.length; i++) {
+        ctx.lineTo(...points[i]);
+    }
+
+    ctx.lineWidth = width;
+    ctx.strokeStyle = stroke;
+    ctx.stroke();
+}
+
+function radius(n, angle) {
+    if (!n) return 1;
+
+    const sector = TAU / n;
+
+    return Math.cos(Math.PI / n) / Math.cos(
+        ((angle + Math.PI / n) % sector + sector) % sector -
+        Math.PI / n
+    );
+}
+
+function shape(ctx, a, b, size, mix, rotation = 0) {
+    ctx.beginPath();
+
+    for (let i = 0; i <= 48; i++) {
+        const angle = i / 48 * TAU;
+        const r = size * (
+            radius(a, angle) * (1 - mix) +
+            radius(b, angle) * mix
+        );
+
+        const x = Math.cos(angle + rotation) * r;
+        const y = Math.sin(angle + rotation) * r;
+
+        if (i) ctx.lineTo(x, y);
+        else ctx.moveTo(x, y);
+    }
+
+    ctx.closePath();
+}
+
+function update(s, dt, f) {
+    // Shapes spawn even without music or detected beats.
+    s.emit += dt * speed * (3 + f.high * 7);
+
+    while (s.emit >= 1) {
+        s.emit--;
+
+        if (s.objects.length < 140) {
+            s.objects.push(makeObject(s));
+        }
+    }
+
+    for (const o of s.objects) {
+        o.age += dt * speed;
+
+        o.x += (
+            o.vx + Math.sin(t * .5 + o.h) * .012
+        ) * dt * speed;
+
+        o.y += o.vy * dt * speed;
+        o.rotation += o.spin * dt * speed;
+    }
+
+    s.objects = s.objects.filter(
+        o => o.age < o.life && o.y > -.3
+    );
+}
+
+function paint(ctx, s, f) {
+    const r = s.spacing / density;
+    const phase = s.phase;
+
+    if (s.type === 0) {
+        // Breathing honeycomb.
+        for (let x = -2; x < W / (r * 1.5) + 2; x++) {
+            for (let y = -2; y < H / (r * 1.732) + 2; y++) {
+                const wave = Math.sin(
+                    x * .45 + y * .3 - t * .8 + phase
+                );
+
+                const px = x * r * 1.5 +
+                    Math.sin(y * .6 + t * .65) *
+                    r * (.18 + f.mid * .3);
+
+                const py = (y + (x % 2) * .5) * r * 1.732 +
+                    Math.cos(x * .5 - t * .55) *
+                    r * (.2 + f.bass * .4);
+
+                ctx.save();
+                ctx.translate(px, py);
+
+                shape(
+                    ctx, 6, 0,
+                    r * (.72 + .1 * wave + f.bass * .12),
+                    (.5 + .5 * Math.sin(t * .18 + x * .13)) *
+                    s.tilt * .55
+                );
+
+                ctx.fillStyle = color(x + y, .035);
+                ctx.fill();
+
+                ctx.strokeStyle = color(
+                    x + y,
+                    .3 + .15 * wave + f.high * .2
+                );
+
+                ctx.lineWidth = .8 + f.bass * 1.5;
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+    } else if (s.type === 1) {
+        // Connected triangular mesh.
+        const step = r * 1.5;
+
+        const point = (x, y) => [
+            x + Math.sin(y * .005 + t * .6 + phase) *
+                step * (.18 + f.mid * .4),
+
+            y + Math.sin(x * .006 - t * .65) *
+                step * (.22 + f.bass * .5)
+        ];
+
+        for (let row = -2; row < H / (step * .866) + 2; row++) {
+            for (let col = -2; col < W / step + 2; col++) {
+                const x = (col + (row % 2) * .5) * step;
+                const y = row * step * .866;
+
+                const p = point(x, y);
+                const a = point(x + step, y);
+                const b = point(x + step * .5, y + step * .866);
+
+                const pulse = .5 + .5 * Math.sin(
+                    col * .3 + row * .5 - t
+                );
+
+                ctx.beginPath();
+                ctx.moveTo(...p);
+                ctx.lineTo(...a);
+                ctx.lineTo(...b);
+                ctx.closePath();
+
+                ctx.fillStyle = color(col - row, .025 + pulse * .06);
+                ctx.fill();
+
+                ctx.strokeStyle = color(row, .22 + pulse * .25);
+                ctx.lineWidth = .7 + f.high;
+                ctx.stroke();
+            }
+        }
+    } else if (s.type === 2) {
+        // Moving orbital rings.
+        const m = Math.min(W, H);
+        const count = Math.round(30 * density);
+
+        const cx = W * (.5 + Math.sin(t * .16 + phase) * .12);
+        const cy = H * (.5 + Math.cos(t * .21) * .1);
+
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(t * .09 + s.tilt);
+
+        for (let j = 0; j < count; j++) {
+            const points = [];
+
+            const base = m * (.08 + j / count * .44) *
+                (1 + f.bass * .15);
+
+            for (let i = 0; i <= 100; i++) {
+                const angle = i / 100 * TAU;
+
+                const q = base + Math.sin(
+                    angle * (3 + Math.round(s.tilt * 4)) +
+                    t * .8 + j * .12
+                ) * m * (.009 + f.mid * .022);
+
+                points.push([
+                    Math.cos(angle) * q,
+                    Math.sin(angle) * q *
+                        (.5 + .25 * Math.sin(t * .12 + phase))
+                ]);
+            }
+
+            path(ctx, points, .8 + f.high, color(j, .45));
+        }
+
+        ctx.restore();
+    } else if (s.type === 3) {
+        // Continuously generated, morphing shapes.
+        for (const o of s.objects) {
+            const opacity = Math.sin(
+                Math.min(1, o.age / o.life) * Math.PI
+            );
+
+            const mix = smooth(
+                .5 + .5 * Math.sin(o.age * .7 + o.h)
+            );
+
+            ctx.save();
+            ctx.translate(o.x * W, o.y * H);
+
+            shape(
+                ctx, o.a, o.b,
+                o.size * (.65 + f.bass * .65) * Math.sqrt(density),
+                mix,
+                o.rotation
+            );
+
+            ctx.fillStyle = color(o.h, opacity * .08);
+            ctx.fill();
+
+            ctx.strokeStyle = color(o.h, opacity * .75);
+            ctx.lineWidth = 1 + f.mid * 2;
+            ctx.stroke();
+            ctx.restore();
+        }
+    } else if (s.type === 4) {
+        // Luminous wave bundles.
+        const bands = 4 + Math.round(s.tilt * 3);
+        const threads = Math.round(8 * density);
+
+        for (let b = 0; b < bands; b++) {
+            for (let k = 0; k < threads; k++) {
+                const points = [];
+
+                for (let x = -10; x < W + 12; x += 8) {
+                    const y = H * .5 +
+                        (b - (bands - 1) / 2) * H * .065 +
+
+                        Math.sin(
+                            x * .004 * (1 + b * .13) +
+                            t * (.4 + b * .08) + phase + b
+                        ) * H * (.12 + f.bass * .16) +
+
+                        Math.sin(x * .01 - t * .8 + b) *
+                            H * (.02 + f.mid * .04) +
+
+                        (k - threads / 2) * 2.3;
+
+                    points.push([x, y]);
+                }
+
+                path(
+                    ctx,
+                    points,
+                    .85 + f.high * 1.2,
+                    color(b, .35 + f.level * .2)
+                );
+            }
+        }
+    } else {
+        // Radial FFT spectrum, with ambient motion when disconnected.
+        const m = Math.min(W, H);
+        const base = m * (.14 + f.bass * .025);
+
+        for (let i = 0; i < 128; i++) {
+            const index = i < 64 ? i : 127 - i;
+
+            const v = audio.live
+                ? audio.spec[index]
+                : .15 + .22 * (
+                    .5 + .5 * Math.sin(index * .17 + t * 1.3)
+                );
+
+            const angle = i / 128 * TAU + t * .1;
+            const length = 4 + v * m * .27;
+
+            path(ctx, [
+                [
+                    W / 2 + Math.cos(angle) * base,
+                    H / 2 + Math.sin(angle) * base
+                ],
+                [
+                    W / 2 + Math.cos(angle) * (base + length),
+                    H / 2 + Math.sin(angle) * (base + length)
+                ]
+            ], Math.max(1, m / 220), color(i / 20, .45 + v * .5));
+        }
+    }
+}
+
+function change(type) {
+    if (transition) scene = transition.to;
+
+    transition = {
+        from: scene,
+        to: makeScene((type + names.length) % names.length),
+        age: 0
+    };
+
+    clock = 0;
+
+    const selected = transition.to.type;
+
+    $('sceneName').textContent =
+        names[selected].toUpperCase() + ' / LIVE CANVAS';
+
+    for (const button of $('patterns').children) {
+        button.classList.toggle(
+            'active',
+            Number(button.dataset.type) === selected
+        );
+    }
+}
+
+function selected() {
+    return transition ? transition.to.type : scene.type;
+}
+
+// Audio input and analysis.
+// Only local files are routed to the app's speakers.
+const audio = {
+    live: false,
+    kind: 'ambient',
+    name: 'Ambient',
+    stream: null,
+    node: null,
+    url: null,
+    request: 0,
+    silent: 0,
+    peak: .18,
+    f: { bass: 0, mid: 0, high: 0, level: 0 },
+    spec: new Float32Array(64)
+};
+
+async function initAudio() {
+    if (!audio.ctx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+
+        if (!AC) {
+            throw Error('Web Audio is unavailable in this browser.');
+        }
+
+        audio.ctx = new AC();
+        audio.an = audio.ctx.createAnalyser();
+        audio.an.fftSize = 2048;
+        audio.an.smoothingTimeConstant = .45;
+
+        audio.bins = new Uint8Array(audio.an.frequencyBinCount);
+        audio.wave = new Float32Array(audio.an.fftSize);
+
+        audio.output = audio.ctx.createGain();
+        audio.output.gain.value = 0;
+
+        audio.an.connect(audio.output);
+        audio.output.connect(audio.ctx.destination);
+
+        audio.fileNode = audio.ctx.createMediaElementSource(player);
+    }
+
+    await audio.ctx.resume();
+
+    if (audio.ctx.state !== 'running') {
+        throw Error('Audio is suspended. Click the source button again.');
+    }
+}
+
+function cleanup() {
+    if (audio.stream) {
+        for (const track of audio.stream.getTracks()) {
+            track.onended = null;
+            track.stop();
+        }
+    }
+
+    if (audio.node) audio.node.disconnect();
+    if (audio.output) audio.output.gain.value = 0;
+
+    player.pause();
+    player.removeAttribute('src');
+    player.load();
+    player.hidden = true;
+
+    if (audio.url) URL.revokeObjectURL(audio.url);
+
+    audio.stream = null;
+    audio.node = null;
+    audio.url = null;
+    audio.live = false;
+    audio.kind = 'ambient';
+    audio.name = 'Ambient';
+    audio.silent = 0;
+    audio.peak = .18;
+    audio.spec.fill(0);
+
+    for (const key in audio.f) audio.f[key] = 0;
+}
+
+function attach(node, kind, name, stream = null) {
+    cleanup();
+
+    audio.node = node;
+    audio.kind = kind;
+    audio.name = name;
+    audio.stream = stream;
+    audio.live = true;
+
+    node.connect(audio.an);
+    audio.output.gain.value = kind === 'file' ? 1 : 0;
+
+    if (stream) {
+        for (const track of stream.getTracks()) {
+            track.onended = () => {
+                if (audio.stream === stream) {
+                    audio.request++;
+                    cleanup();
+                }
+            };
+        }
+    }
+}
+
+let pending = false;
+
+async function connect(kind, file) {
+    if (pending) return;
+
+    pending = true;
+    $('error').textContent = '';
+
+    const ticket = ++audio.request;
+    let incoming;
+
+    try {
+        if (kind === 'capture') {
+            if (!navigator.mediaDevices?.getDisplayMedia) {
+                throw Error(
+                    'Capture needs a supported desktop browser ' +
+                    'and localhost or HTTPS.'
+                );
+            }
+
+            // Invoke directly from the click to retain user activation.
+            incoming = await navigator.mediaDevices.getDisplayMedia({
+                video: true,
+                audio: {
+                    echoCancellation: false,
+                    noiseSuppression: false,
+                    autoGainControl: false
+                },
+                systemAudio: 'include',
+                selfBrowserSurface: 'exclude'
+            });
+
+            if (!incoming.getAudioTracks().length) {
+                throw Error(
+                    'No audio track was shared. ' +
+                    'Choose a tab and enable Share audio.'
+                );
+            }
+        } else if (kind === 'mic') {
+            if (!navigator.mediaDevices?.getUserMedia) {
+                throw Error(
+                    'Microphone access needs localhost or HTTPS.'
+                );
+            }
+
+            incoming = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: false,
+                    noiseSuppression: false,
+                    autoGainControl: false
+                }
+            });
+        }
+
+        if (ticket !== audio.request) {
+            incoming?.getTracks().forEach(track => track.stop());
+            return;
+        }
+
+        await initAudio();
+
+        if (ticket !== audio.request) {
+            incoming?.getTracks().forEach(track => track.stop());
+            return;
+        }
+
+        if (kind === 'file') {
+            attach(audio.fileNode, 'file', file.name);
+
+            audio.url = URL.createObjectURL(file);
+            player.src = audio.url;
+            player.hidden = false;
+
+            try {
+                await player.play();
+            } catch (error) {
+                if (ticket === audio.request) cleanup();
+
+                throw Error(
+                    'This file could not play. ' +
+                    'Try a supported MP3 or WAV file.'
+                );
+            }
+        } else {
+            const stream = new MediaStream(incoming.getAudioTracks());
+
+            attach(
+                audio.ctx.createMediaStreamSource(stream),
+                kind,
+                kind === 'mic' ? 'Microphone' : 'Shared tab / system audio',
+                incoming
+            );
+        }
+    } catch (error) {
+        incoming?.getTracks().forEach(track => track.stop());
+
+        $('error').textContent = error.name === 'NotAllowedError'
+            ? 'Permission declined or sharing cancelled. ' +
+              'Your previous source is unchanged.'
+            : error.message;
+    } finally {
+        pending = false;
+    }
+}
+
+function sampleAudio(dt) {
+    if (!audio.live) return audio.f;
+
+    audio.an.getByteFrequencyData(audio.bins);
+    audio.an.getFloatTimeDomainData(audio.wave);
+
+    const hz = audio.ctx.sampleRate / audio.an.fftSize;
+
+    const average = (low, high) => {
+        let sum = 0;
+        let count = 0;
+
+        for (
+            let i = Math.max(1, Math.floor(low / hz));
+            i < Math.min(audio.bins.length, Math.ceil(high / hz));
+            i++
+        ) {
+            sum += audio.bins[i];
+            count++;
+        }
+
+        return count ? sum / count / 255 : 0;
+    };
+
+    let power = 0;
+
+    for (const value of audio.wave) {
+        power += value * value;
+    }
+
+    audio.silent = Math.sqrt(power / audio.wave.length) < .0008
+        ? audio.silent + dt
+        : 0;
+
+    const values = {
+        bass: average(30, 180),
+        mid: average(180, 2500),
+        high: average(2500, 12000)
+    };
+
+    audio.peak = Math.max(
+        .12,
+        ...Object.values(values),
+        audio.peak * Math.exp(-dt * .08)
+    );
+
+    for (const key of ['bass', 'mid', 'high']) {
+        const target = Math.min(
+            1,
+            values[key] / audio.peak * sensitivity
+        );
+
+        const response = target > audio.f[key] ? 22 : 6;
+
+        audio.f[key] += (
+            target - audio.f[key]
+        ) * (1 - Math.exp(-dt * response));
+    }
+
+    audio.f.level = (
+        audio.f.bass + audio.f.mid + audio.f.high
+    ) / 3;
+
+    for (let i = 0; i < 64; i++) {
+        const low = 35 * Math.pow(400, i / 64);
+        const high = 35 * Math.pow(400, (i + 1) / 64);
+
+        const target = Math.min(
+            1,
+            average(low, Math.max(high, low + hz)) /
+                audio.peak * sensitivity
+        );
+
+        audio.spec[i] += (
+            target - audio.spec[i]
+        ) * (1 - Math.exp(-dt * 20));
+    }
+
+    return audio.f;
+}
+
+let uiTime = 0;
+
+function frame(now) {
+    const dt = Math.min(
+        .05,
+        Math.max(0, (now - last) / 1000 || .016)
+    );
+
+    last = now;
+
+    const real = sampleAudio(dt);
+
+    if (!paused) {
+        t += dt * speed;
+        clock += dt;
+        paletteMix = Math.min(1, paletteMix + dt * .35);
+
+        const f = audio.live ? real : {
+            bass: .12 + .1 * Math.sin(t * .7) ** 2,
+            mid: .12,
+            high: .08,
+            level: .12
+        };
+
+        if ($('auto').checked && clock > interval && !transition) {
+            change(
+                selected() + 1 +
+                Math.floor(Math.random() * (names.length - 1))
+            );
+        }
+
+        c.setTransform(D, 0, 0, D, 0, 0);
+        c.globalAlpha = 1;
+        c.fillStyle = '#05080e';
+        c.fillRect(0, 0, W, H);
+
+        const haze = c.createRadialGradient(
+            W / 2, H / 2, 1,
+            W / 2, H / 2, Math.max(W, H) * .65
+        );
+
+        haze.addColorStop(0, color(0, .12, 25));
+        haze.addColorStop(1, 'rgba(0,0,0,0)');
+
+        c.fillStyle = haze;
+        c.fillRect(0, 0, W, H);
+
+        if (transition) {
+            transition.age += dt;
+
+            const mix = smooth(
+                Math.min(1, transition.age / 4)
+            );
+
+            update(transition.from, dt, f);
+            update(transition.to, dt, f);
+
+            c.globalAlpha = 1 - mix;
+            paint(c, transition.from, f);
+
+            bc.setTransform(D, 0, 0, D, 0, 0);
+            bc.clearRect(0, 0, W, H);
+            paint(bc, transition.to, f);
+
+            c.globalAlpha = mix;
+            c.drawImage(buffer, 0, 0, W, H);
+            c.globalAlpha = 1;
+
+            if (transition.age >= 4) {
+                scene = transition.to;
+                transition = null;
+            }
+        } else {
+            update(scene, dt, f);
+            paint(c, scene, f);
+        }
+    }
+
+    if (now - uiTime > 150) {
+        uiTime = now;
+
+        let message = audio.live
+            ? audio.name + ' · listening'
+            : 'Ambient · no audio connected';
+
+        if (audio.live && audio.silent > 2) {
+            message = audio.name +
+                ' · connected, but no audible signal detected';
+        }
+
+        if (audio.kind === 'file' && player.paused) {
+            message = audio.name +
+                (player.ended ? ' · ended' : ' · paused');
+        }
+
+        $('status').textContent = message;
+
+        for (const key of ['bass', 'mid', 'high']) {
+            $(key + 'Meter').style.width =
+                (audio.live ? real[key] * 100 : 0) + '%';
+        }
+    }
+
+    requestAnimationFrame(frame);
+}
+
+// Build the pattern buttons.
+for (let i = 0; i < names.length; i++) {
+    const button = document.createElement('button');
+
+    button.textContent = names[i];
+    button.dataset.type = i;
+
+    if (!i) button.classList.add('active');
+
+    button.onclick = () => {
+        $('auto').checked = false;
+        change(i);
+    };
+
+    $('patterns').appendChild(button);
+}
+
+// Build the palette buttons.
+for (let i = 0; i < palettes.length; i++) {
+    const button = document.createElement('button');
+
+    button.title = paletteNames[i];
+    button.setAttribute('aria-label', paletteNames[i]);
+
+    button.style.background = 'linear-gradient(90deg,' +
+        palettes[i].map(
+            hue => `hsl(${hue},80%,55%)`
+        ).join(',') + ')';
+
+    if (!i) button.classList.add('active');
+
+    button.onclick = () => {
+        oldPalette = palette;
+        palette = i;
+        paletteMix = 0;
+
+        for (const other of $('palettes').children) {
+            other.classList.toggle('active', other === button);
+        }
+    };
+
+    $('palettes').appendChild(button);
+}
+
+$('capture').onclick = () => connect('capture');
+$('mic').onclick = () => connect('mic');
+
+$('file').onchange = event => {
+    if (event.target.files[0]) {
+        connect('file', event.target.files[0]);
+    }
+
+    event.target.value = '';
+};
+
+$('ambient').onclick = () => {
+    audio.request++;
+    cleanup();
+    $('error').textContent = '';
+};
+
+for (const id of ['speed', 'density', 'sensitivity', 'interval']) {
+    $(id).oninput = event => {
+        const value = Number(event.target.value);
+
+        if (id === 'speed') speed = value;
+        if (id === 'density') density = value;
+        if (id === 'sensitivity') sensitivity = value;
+        if (id === 'interval') interval = value;
+
+        $(id + 'Value').textContent = id === 'interval'
+            ? value + ' s'
+            : value.toFixed(1) + '×';
+    };
+}
+
+$('auto').onchange = () => clock = 0;
+$('evolve').onclick = () => change(selected());
+
+$('pause').onclick = () => {
+    paused = !paused;
+    $('pause').textContent = paused ? 'Resume' : 'Pause';
+};
+
+$('menu').onclick = () => {
+    const hidden = document.body.classList.toggle('hidden-controls');
+
+    $('menu').textContent = hidden
+        ? 'Show controls'
+        : 'Hide controls';
+
+    $('menu').setAttribute('aria-expanded', String(!hidden));
+};
+
+$('fullscreen').onclick = async () => {
+    try {
+        if (document.fullscreenElement) {
+            await document.exitFullscreen();
+        } else {
+            await $('stage').requestFullscreen();
+        }
+    } catch (error) {
+        $('error').textContent = 'Fullscreen is unavailable here.';
+    }
+};
+
+addEventListener('keydown', event => {
+    if (
+        event.ctrlKey || event.metaKey || event.altKey ||
+        ['INPUT', 'BUTTON', 'SELECT', 'TEXTAREA', 'AUDIO']
+            .includes(event.target.tagName)
+    ) {
+        return;
+    }
+
+    const key = event.key.toLowerCase();
+
+    if (key === 'm') $('menu').click();
+    if (key === 'f') $('fullscreen').click();
+    if (key === 'n') change(selected() + 1);
+
+    if (key === ' ') {
+        event.preventDefault();
+        $('pause').click();
+    }
+});
+
+document.addEventListener('fullscreenchange', () => {
+    $('fullscreen').textContent = document.fullscreenElement
+        ? 'Exit fullscreen'
+        : 'Fullscreen';
+
+    resize();
+});
+
+document.addEventListener('visibilitychange', () => {
+    last = performance.now();
+});
+
+addEventListener('pagehide', () => {
+    audio.request++;
+    cleanup();
+});
+
+new ResizeObserver(resize).observe($('screen'));
+
+resize();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
