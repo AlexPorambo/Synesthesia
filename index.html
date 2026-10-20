@@ -1,144 +1,1557 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <meta name="theme-color" content="#080c13" />
-    <link
-      rel="icon"
-      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23080c13'/%3E%3Ccircle cx='16' cy='16' r='10' fill='none' stroke='%239de6bc'/%3E%3Cellipse cx='16' cy='16' rx='5' ry='10' fill='none' stroke='%235c9fdd'/%3E%3C/svg%3E"
-    />
-    <title>Synesthesia</title>
-    <link rel="stylesheet" href="studio.css" />
-  </head>
-  <body>
-    <canvas
-      id="art"
-      aria-label="Animated audio-reactive geometric composition"
-    ></canvas>
-    <div class="vignette"></div>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Synesthesia — Motion & Sound</title>
+
+  <style>
+    :root {
+        font-family: Arial, sans-serif;
+        color: #edf0e9;
+        background: #101310;
+        color-scheme: dark;
+        --accent: #d1edb2;
+        --muted: #9aaa94;
+        --border: #36412f;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    header {
+        padding: 24px 4vw;
+        border-bottom: 1px solid var(--border);
+        letter-spacing: .16em;
+    }
+    header strong { font-size: 19px; }
+    header small {
+        display: block;
+        color: var(--muted);
+        font-size: 9px;
+        margin-top: 8px;
+    }
+    main {
+        max-width: 1550px;
+        padding: 28px 4vw;
+        margin: auto;
+    }
+    h1 {
+        font-size: clamp(34px,4vw,56px);
+        font-weight: 400;
+        letter-spacing: -.05em;
+        margin: 10px 0;
+    }
+    p {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.6;
+    }
+    .layout {
+        display: grid;
+        grid-template-columns: 280px minmax(0,1fr);
+        gap: 24px;
+        margin-top: 28px;
+        align-items: start;
+    }
+    aside {
+        padding: 21px;
+        background: #191e18;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+    }
+    h2 {
+        font-size: 10px;
+        letter-spacing: .13em;
+        color: #c5d4b9;
+        margin: 0 0 13px;
+    }
+    .section {
+        border-top: 1px solid var(--border);
+        padding-top: 20px;
+        margin-top: 20px;
+    }
+    button, input { font: inherit; }
+    button, .file {
+        border: 1px solid #46523d;
+        background: #263121;
+        color: #e2ecd9;
+        border-radius: 7px;
+        padding: 10px 12px;
+        font-size: 12px;
+        cursor: pointer;
+    }
+    button:hover { background: #35482c; }
+    button:disabled { opacity: .5; cursor: wait; }
+    .primary, button.active {
+        background: var(--accent);
+        color: #17200f;
+    }
+    .sources { display: grid; gap: 8px; }
+    .file { display: block; }
+    .file input {
+        display: block;
+        width: 100%;
+        font-size: 10px;
+        margin-top: 8px;
+    }
+    .help { font-size: 11px; }
+    .control {
+        display: block;
+        font-size: 11px;
+        color: #c2d0b8;
+        margin-top: 17px;
+    }
+    .control output { float: right; color: var(--accent); }
+    input[type=range] {
+        display: block;
+        width: 100%;
+        margin-top: 9px;
+        accent-color: var(--accent);
+    }
+    .check {
+        font-size: 12px;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-top: 14px;
+    }
+    .check input { accent-color: var(--accent); }
+    #patterns {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 7px;
+    }
+    #patterns button {
+        font-size: 11px;
+        padding: 10px 5px;
+    }
+    #palettes { display: flex; gap: 8px; flex-wrap: wrap; }
+    #palettes button {
+        width: 33px;
+        height: 26px;
+        padding: 0;
+        border: 2px solid transparent;
+        border-radius: 20px;
+    }
+    #palettes .active { border-color: white; }
+    .stage {
+        background: #05080e;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+        position: sticky;
+        top: 16px;
+        min-width: 0;
+    }
+    .toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+        padding: 13px;
+        background: #171d16;
+        border-bottom: 1px solid var(--border);
+    }
+    #sceneName { font-size: 10px; letter-spacing: .13em; }
+    .tools { display: flex; gap: 6px; flex-wrap: wrap; }
+    .tools button { padding: 7px 9px; font-size: 11px; }
+    .screen {
+        height: 65vh;
+        min-height: 370px;
+        max-height: 850px;
+    }
+    canvas { display: block; width: 100%; height: 100%; }
+    .status {
+        padding: 13px 16px;
+        border-top: 1px solid var(--border);
+        background: #121910;
+        font-size: 11px;
+        color: #becdb4;
+        overflow-wrap: anywhere;
+    }
+    .meters { display: flex; gap: 12px; margin-top: 12px; }
+    .meters > div { flex: 1; font-size: 9px; color: var(--muted); }
+    .track { height: 3px; background: #303d2a; margin-top: 6px; }
+    .fill { height: 100%; background: var(--accent); width: 0; }
+    #error { font-size: 12px; color: #ffbc98; }
+    #error:empty { display: none; }
+    audio { width: 100%; height: 34px; margin-top: 12px; }
+    .hidden-controls .layout { grid-template-columns: 1fr; }
+    .hidden-controls aside { display: none; }
+    .stage:fullscreen {
+        position: fixed;
+        inset: 0;
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        border: 0;
+        border-radius: 0;
+    }
+    .stage:fullscreen .screen {
+        flex: 1;
+        height: auto;
+        min-height: 0;
+        max-height: none;
+    }
+    .stage:fullscreen .meters { display: none; }
+    footer {
+        border-top: 1px solid var(--border);
+        margin-top: 28px;
+        padding-top: 18px;
+        font-size: 9px;
+        letter-spacing: .1em;
+        color: var(--muted);
+    }
+    [hidden] { display: none !important; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+    @media (max-width:740px) {
+        main { padding: 22px 16px; }
+        .layout { grid-template-columns: 1fr; }
+        .stage { order: 0; position: static; }
+        aside { order: 1; }
+        .screen { height: 52vh; min-height: 300px; }
+    }
+    </style>
+    </head>
+
+    <body>
     <header>
-      <a class="brand" href="/">SYNESTHESIA</a>
-      <div class="header-right">
-        <span class="live"
-          ><i></i><span id="modeLabel">AMBIENT SESSION</span></span
-        ><button
-          id="fullscreen"
-          title="Toggle fullscreen (F)"
-          aria-label="Toggle fullscreen"
-        >
-          ⛶
-        </button>
-      </div>
+        <strong>SYNESTHESIA</strong>
+        <small>MOTION & SOUND / GENERATIVE STUDIO</small>
     </header>
-    <main id="controls">
-      <section class="intro">
-        <div class="eyebrow">AN ENDLESS EXPLORATION / VOL. 01</div>
-        <h1>Lose yourself<br />in the frequency.</h1>
-        <p>
-          Living geometry. Infinite motion.<br />A little space to see what you
-          hear.
-        </p>
-      </section>
-      <aside class="panel">
-        <div class="panel-heading">
-          <span>THE COMPOSITION</span><span class="number">01 — ∞</span>
-        </div>
-        <div class="tabs" role="group" aria-label="Session mode">
-          <button id="ambient" class="selected" aria-pressed="true">
-            Ambient</button
-          ><button id="music" aria-pressed="false">Music reactive</button>
-        </div>
-        <div id="audioPanel" hidden>
-          <label class="upload" for="file"
-            ><span>＋ Add your music</span
-            ><small>MP3, WAV, FLAC, M4A · stays on your device</small></label
-          ><input id="file" type="file" accept="audio/*" hidden />
-          <div class="source-buttons">
-            <button id="microphone">◉ Microphone</button
-            ><button id="disconnect" hidden>Disconnect</button>
-          </div>
-          <div id="player" hidden>
-            <div id="trackName"></div>
-            <div class="transport">
-              <button id="play" aria-label="Play audio">▶</button
-              ><input
-                id="seek"
-                type="range"
-                min="0"
-                max="100"
-                step="0.1"
-                value="0"
-                aria-label="Track position"
-              /><span id="time">0:00</span
-              ><button id="loop" aria-pressed="true" title="Loop track">
-                ↻
-              </button>
+
+    <main>
+    <h1>See what sound can become.</h1>
+    <p>
+        Evolving geometry, shifting color, and motion shaped by music.
+        The ambient canvas starts automatically.
+    </p>
+
+    <div class="layout">
+        <aside id="sidebar">
+            <h2>01 / AUDIO SOURCE</h2>
+
+            <div class="sources">
+                <button id="capture" class="primary">
+                    Capture tab / system audio
+                </button>
+                <button id="mic">Use microphone</button>
+
+                <label class="file">
+                    Open a music file
+                    <input id="file" type="file" accept="audio/*">
+                </label>
+
+                <button id="ambient">Ambient / disconnect</button>
             </div>
-            <label class="volume"
-              >Volume<input
-                id="volume"
-                type="range"
-                min="0"
-                max="1"
-                step="0.01"
-                value="0.7"
-            /></label>
-          </div>
-          <p id="audioStatus" role="status">
-            Choose a track or connect your microphone.
-          </p>
-          <div class="meters">
-            <span>LOW<i id="bassMeter"></i></span
-            ><span>MID<i id="midMeter"></i></span
-            ><span>HIGH<i id="highMeter"></i></span>
-          </div>
-        </div>
-        <div class="field-title">
-          COLOR ATMOSPHERE <span id="paletteName">Aurora</span>
-        </div>
-        <div
-          id="palettes"
-          class="palettes"
-          role="group"
-          aria-label="Color palette"
-        ></div>
-        <div class="field-title">GEOMETRY <span>Layer freely</span></div>
-        <div class="patterns">
-          <button data-pattern="honeycomb" class="selected" aria-pressed="true">
-            ⬡<span>Honeycomb</span></button
-          ><button data-pattern="mesh" class="selected" aria-pressed="true">
-            △<span>Mesh</span></button
-          ><button data-pattern="orbits" class="selected" aria-pressed="true">
-            ◎<span>Orbits</span></button
-          ><button data-pattern="wave" aria-pressed="false">
-            ∿<span>Waveform</span>
-          </button>
-        </div>
-        <div id="sliders"></div>
-        <div class="panel-footer">
-          <button id="reset">↺ Reset</button
-          ><button id="snapshot">↗ Save frame</button>
-        </div>
-      </aside>
-    </main>
+
+            <audio id="player" controls hidden></audio>
+
+            <p class="help">
+                For streaming music, start playback in another tab,
+                capture that tab, and enable <b>Share audio</b>.
+                Desktop-app capture requires a system-audio option
+                in the browser picker. Some sources cannot share audio.
+            </p>
+
+            <p id="error" role="alert"></p>
+
+            <div class="section">
+                <h2>02 / PATTERN SYSTEM</h2>
+                <div id="patterns"></div>
+
+                <label class="check">
+                    <input id="auto" type="checkbox" checked>
+                    Automatically evolve scenes
+                </label>
+
+                <label class="control">
+                    Scene interval
+                    <output id="intervalValue">24 s</output>
+                    <input id="interval" type="range"
+                          min="10" max="60" value="24">
+                </label>
+            </div>
+
+            <div class="section">
+                <h2>03 / COLOR & MOTION</h2>
+                <div id="palettes"></div>
+
+                <label class="control">
+                    Motion speed
+                    <output id="speedValue">1.0×</output>
+                    <input id="speed" type="range"
+                          min=".2" max="2.5" step=".1" value="1">
+                </label>
+
+                <label class="control">
+                    Pattern density
+                    <output id="densityValue">1.0×</output>
+                    <input id="density" type="range"
+                          min=".5" max="1.6" step=".1" value="1">
+                </label>
+
+                <label class="control">
+                    Audio sensitivity
+                    <output id="sensitivityValue">1.0×</output>
+                    <input id="sensitivity" type="range"
+                          min=".3" max="3" step=".1" value="1">
+                </label>
+
+                <p class="help">
+                    M: controls · F: fullscreen · N: next scene ·
+                    Space: pause visuals
+                </p>
+            </div>
+        </aside>
+
+        <section class="stage" id="stage">
+            <div class="toolbar">
+                <span id="sceneName">RADIAL WAVE / LIVE CANVAS</span>
+
+                <div class="tools">
+                    <button id="evolve">Evolve ↗</button>
+                    <button id="pause">Pause</button>
+                    <button id="menu"
+                            aria-expanded="true"
+                            aria-controls="sidebar">
+                        Hide controls
+                    </button>
+                    <button id="fullscreen">Fullscreen</button>
+                </div>
+            </div>
+
+            <div class="screen" id="screen">
+                <canvas id="canvas"
+                        aria-label="Live procedural visualizer"></canvas>
+            </div>
+
+            <div class="status">
+                <span id="status" role="status">
+                    Ambient · no audio connected
+                </span>
+
+                <div class="meters">
+                    <div>
+                        BASS
+                        <div class="track">
+                            <div class="fill" id="bassMeter"></div>
+                        </div>
+                    </div>
+                    <div>
+                        MIDS
+                        <div class="track">
+                            <div class="fill" id="midMeter"></div>
+                        </div>
+                    </div>
+                    <div>
+                        TREBLE
+                        <div class="track">
+                            <div class="fill" id="highMeter"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
     <footer>
-      <div class="scene-label">
-        <span class="tiny-line"></span>
-        <div>
-          <span id="sceneName">AURORA / LIVING GEOMETRY</span
-          ><small id="sessionStatus">NO SOUND REQUIRED. JUST BE HERE.</small>
-        </div>
-      </div>
-      <div class="bottom-actions">
-        <button id="pause" aria-pressed="false">Ⅱ Pause</button
-        ><button id="hide" title="Hide controls (H)">◫ Hide controls</button>
-      </div>
+        DRAWN WITH MATHEMATICS. MOVED BY MUSIC. ·
+        LOCAL ANALYSIS · NO AI OR ACCOUNT REQUIRED
     </footer>
-    <button id="show" hidden>◫ Show controls</button>
-    <div id="toast" role="status"></div>
-    <audio id="audio" loop></audio>
-    <script src="engine.js"></script>
-    <script src="studio.js"></script>
+    </main>
+
+    <script>
+    'use strict';
+
+    const $ = id => document.getElementById(id);
+    const canvas = $('canvas');
+    const c = canvas.getContext('2d');
+    const player = $('player');
+    const TAU = Math.PI * 2;
+
+    const names = ['Radial wave', 'Aurora'];
+
+    const palettes = [
+        [155, 190, 275],
+        [95, 135, 175],
+        [5, 28, 55],
+        [185, 220, 265],
+        [0, 70, 150, 210, 285, 330]
+    ];
+
+    const paletteNames = [
+        'Aurora', 'Console', 'Ember', 'Ocean', 'Prism'
+    ];
+
+    let W = 800;
+    let H = 600;
+    let D = 1;
+    let t = 0;
+    let last = 0;
+    let paused = false;
+    let speed = 1;
+    let density = 1;
+    let sensitivity = 1;
+    let interval = 24;
+    let clock = 0;
+    let palette = 0;
+    let oldPalette = 0;
+    let paletteMix = 1;
+    let transition = null;
+
+    const buffer = document.createElement('canvas');
+    const bc = buffer.getContext('2d');
+
+    const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+    const smooth = v => v * v * (3 - 2 * v);
+
+    function rng(seed) {
+        return () => {
+            seed = (seed + 0x6D2B79F5) >>> 0;
+            let n = Math.imul(seed ^ (seed >>> 15), seed | 1);
+            n ^= n + Math.imul(n ^ (n >>> 7), n | 61);
+            return ((n ^ (n >>> 14)) >>> 0) / 4294967296;
+        };
+    }
+
+    function makeScene(type) {
+        const random = rng(
+            crypto.getRandomValues(new Uint32Array(1))[0]
+        );
+
+        const s = {
+            type,
+            random,
+            phase: random() * TAU,
+            spacing: 40 + random() * 25,
+            tilt: random(),
+            objects: [],
+            emit: 0
+        };
+
+        for (let i = 0; i < 30; i++) {
+            s.objects.push(makeObject(s, true));
+        }
+
+        return s;
+    }
+
+    function makeObject(s, initial = false) {
+        const r = s.random;
+        const life = 6 + r() * 8;
+
+        return {
+            x: r(),
+            y: initial ? r() : 1.1,
+            age: initial ? r() * life : 0,
+            life,
+            size: 12 + r() * 55,
+            vx: (r() - .5) * .04,
+            vy: -.035 - r() * .06,
+            rotation: r() * TAU,
+            spin: (r() - .5) * .6,
+            a: [0, 3, 4, 6][Math.floor(r() * 4)],
+            b: [0, 3, 4, 6][Math.floor(r() * 4)],
+            h: r() * 5
+        };
+    }
+
+    let scene = makeScene(0);
+
+    function resize() {
+        const box = canvas.getBoundingClientRect();
+
+        W = Math.max(1, box.width);
+        H = Math.max(1, box.height);
+        D = Math.min(devicePixelRatio || 1, 1.6);
+
+        let frozen;
+
+        if (paused) {
+            frozen = document.createElement('canvas');
+            frozen.width = canvas.width;
+            frozen.height = canvas.height;
+            frozen.getContext('2d').drawImage(canvas, 0, 0);
+        }
+
+        canvas.width = buffer.width = Math.round(W * D);
+        canvas.height = buffer.height = Math.round(H * D);
+
+        if (frozen) {
+            c.drawImage(frozen, 0, 0, canvas.width, canvas.height);
+        }
+    }
+
+    function color(index, alpha = .6, light = 62) {
+        const get = p => {
+            const list = palettes[p];
+            const i = (
+                (Math.floor(index) % list.length) + list.length
+            ) % list.length;
+
+            return list[i];
+        };
+
+        const a = get(oldPalette);
+        const b = get(palette);
+        const difference = ((b - a + 540) % 360) - 180;
+        const hue = a + difference * smooth(paletteMix) + t * 3;
+
+        return `hsla(${hue},85%,${light}%,${clamp(alpha, 0, 1)})`;
+    }
+
+    function path(ctx, points, width, stroke) {
+        ctx.beginPath();
+        ctx.moveTo(...points[0]);
+
+        for (let i = 1; i < points.length; i++) {
+            ctx.lineTo(...points[i]);
+        }
+
+        ctx.lineWidth = width;
+        ctx.strokeStyle = stroke;
+        ctx.stroke();
+    }
+
+    function radius(n, angle) {
+        if (!n) return 1;
+
+        const sector = TAU / n;
+
+        return Math.cos(Math.PI / n) / Math.cos(
+            ((angle + Math.PI / n) % sector + sector) % sector -
+            Math.PI / n
+        );
+    }
+
+    function shape(ctx, a, b, size, mix, rotation = 0) {
+        ctx.beginPath();
+
+        for (let i = 0; i <= 48; i++) {
+            const angle = i / 48 * TAU;
+            const r = size * (
+                radius(a, angle) * (1 - mix) +
+                radius(b, angle) * mix
+            );
+
+            const x = Math.cos(angle + rotation) * r;
+            const y = Math.sin(angle + rotation) * r;
+
+            if (i) ctx.lineTo(x, y);
+            else ctx.moveTo(x, y);
+        }
+
+        ctx.closePath();
+    }
+
+    function update(s, dt, f) {
+        // Shapes spawn even without music or detected beats.
+        s.emit += dt * speed * (3 + f.high * 7);
+
+        while (s.emit >= 1) {
+            s.emit--;
+
+            if (s.objects.length < 140) {
+                s.objects.push(makeObject(s));
+            }
+        }
+
+        for (const o of s.objects) {
+            o.age += dt * speed;
+
+            o.x += (
+                o.vx + Math.sin(t * .5 + o.h) * .012
+            ) * dt * speed;
+
+            o.y += o.vy * dt * speed;
+            o.rotation += o.spin * dt * speed;
+        }
+
+        s.objects = s.objects.filter(
+            o => o.age < o.life && o.y > -.3
+        );
+    }
+
+    // Interpolate smoothly between neighboring palette colors.
+    function flowingHue(position) {
+        const sample = paletteIndex => {
+            const list = palettes[paletteIndex];
+
+            const scaled = (
+                (position % 1 + 1) % 1
+            ) * list.length;
+
+            const index = Math.floor(scaled);
+            const mix = smooth(scaled - index);
+
+            const a = list[index];
+            const b = list[(index + 1) % list.length];
+
+            return a + (
+                ((b - a + 540) % 360) - 180
+            ) * mix;
+        };
+
+        const a = sample(oldPalette);
+        const b = sample(palette);
+
+        return a + (
+            ((b - a + 540) % 360) - 180
+        ) * smooth(paletteMix) + t * 4;
+    }
+
+    function waveColor(position, alpha = 1, light = 65) {
+        return `hsla(
+            ${flowingHue(position)},
+            90%,
+            ${light}%,
+            ${alpha}
+        )`;
+    }
+
+    // Draw a closed, curved outline rather than separate bars.
+    function closedWave(ctx, points) {
+        const midpoint = (a, b) => [
+            (a[0] + b[0]) / 2,
+            (a[1] + b[1]) / 2
+        ];
+
+        ctx.beginPath();
+
+        ctx.moveTo(
+            ...midpoint(points[points.length - 1], points[0])
+        );
+
+        for (let i = 0; i < points.length; i++) {
+            const next = points[(i + 1) % points.length];
+
+            ctx.quadraticCurveTo(
+                ...points[i],
+                ...midpoint(points[i], next)
+            );
+        }
+
+        ctx.closePath();
+    }
+
+    function paint(ctx, s, f) {
+      ctx.save();
+
+      const m = Math.min(W, H);
+
+      if (s.type === 0) {
+          // RADIAL WAVE:
+          // Larger, slower, and driven by smoothed frequency energy.
+          // The raw waveform component that caused jitter is removed.
+
+          const N = Math.round(96 * density);
+
+          if (!s.ring || s.ring.length !== N) {
+              s.ring = new Float32Array(N);
+          }
+
+          const now = performance.now() / 1000;
+
+          const dt = Math.min(
+              .05,
+              Math.max(0, now - (s.ringTime ?? now))
+          );
+
+          s.ringTime = now;
+
+          // Lower values produce slower, smoother following.
+          const follow = 1 - Math.exp(-dt * 9);
+
+          for (let i = 0; i < N; i++) {
+              const u = i / N;
+
+              const mirrored = u < .5
+                  ? u * 2
+                  : (1 - u) * 2;
+
+              const center = Math.min(
+                  63,
+                  Math.floor(mirrored * 63)
+              );
+
+              let energy = 0;
+
+              // Average a wider band instead of reacting to single bins.
+              for (let k = -6; k <= 6; k++) {
+                  energy += audio.spec[
+                      clamp(center + k, 0, 63)
+                  ];
+              }
+
+              const target = audio.live
+                  ? energy / 13
+                  : .12 + .06 * Math.sin(
+                      u * TAU * 3 + t * .35
+                  );
+
+              s.ring[i] += (
+                  target - s.ring[i]
+              ) * follow;
+          }
+
+          const base = m * (.25 + f.level * .045);
+
+          ctx.translate(W / 2, H / 2);
+
+          const gradient = ctx.createConicGradient(
+              -Math.PI / 2, 0, 0
+          );
+
+          for (let i = 0; i <= 48; i++) {
+              gradient.addColorStop(
+                  i / 48,
+                  waveColor(i / 48)
+              );
+          }
+
+          const halo = ctx.createRadialGradient(
+              0, 0, base * .65,
+              0, 0, base * 1.65
+          );
+
+          halo.addColorStop(0, waveColor(.15, 0));
+
+          halo.addColorStop(
+              .5,
+              waveColor(.2, .08 + f.level * .07)
+          );
+
+          halo.addColorStop(1, waveColor(.4, 0));
+
+          ctx.fillStyle = halo;
+          ctx.fillRect(-W / 2, -H / 2, W, H);
+
+          for (let layer = 2; layer >= 0; layer--) {
+              const points = [];
+
+              for (let i = 0; i < N; i++) {
+                  const angle = i / N * TAU - Math.PI / 2;
+
+                  // Smooth neighboring points around the circle too.
+                  let energy = 0;
+
+                  for (let k = -3; k <= 3; k++) {
+                      energy += s.ring[(i + k + N) % N];
+                  }
+
+                  energy /= 7;
+
+                  // Bring out quieter frequency changes without abrupt clipping.
+                  energy = Math.sqrt(Math.max(0, energy));
+
+                  const displacement = m * (
+                    // Stronger response to frequency energy.
+                    energy * .15 +
+
+                    // Large rolling waves.
+                    Math.sin(
+                        angle * 7 - t * 1.1 + s.phase
+                    ) * (.02 + f.bass * .07) +
+
+                    // A second wave moving in the opposite direction.
+                    Math.cos(
+                        angle * 11 + t * .8
+                    ) * (.012 + f.mid * .03) +
+
+                    // Smaller ripples.
+                    Math.sin(
+                        angle * 17 - t * 1.5
+                    ) * (.003 + f.high * .012)
+                  );
+
+                  // Leave room for larger waves without hitting the canvas edges.
+                  const radius = clamp(
+                      base + layer * m * .012 + displacement,
+                      m * .12,
+                      m * .45
+                  );
+                  points.push([
+                      Math.cos(angle) * radius,
+                      Math.sin(angle) * radius
+                  ]);
+              }
+
+              ctx.save();
+
+              closedWave(ctx, points);
+
+              ctx.strokeStyle = gradient;
+              ctx.globalAlpha *= layer === 0 ? 1 : .28;
+
+              ctx.lineWidth = layer === 0
+              ? 6 + f.level * 8
+              : 2.5;
+
+              ctx.shadowColor = waveColor(.2, .8);
+              ctx.shadowBlur = layer === 0 ? 24 : 10;
+
+              ctx.stroke();
+              ctx.restore();
+          }
+      } else {
+          // AURORA:
+          // An animated plasma/cloud field, not individual line bundles.
+
+          const width = 170;
+          const height = Math.max(
+              60,
+              Math.round(width * H / W)
+          );
+
+          if (
+              !s.cloud ||
+              s.cloud.width !== width ||
+              s.cloud.height !== height
+          ) {
+              s.cloud = document.createElement('canvas');
+              s.cloud.width = width;
+              s.cloud.height = height;
+
+              s.cloudContext = s.cloud.getContext('2d');
+
+              s.cloudPixels = s.cloudContext.createImageData(
+                  width,
+                  height
+              );
+
+              s.bloom = document.createElement('canvas');
+              s.bloom.width = width;
+              s.bloom.height = height;
+
+              s.bloomContext = s.bloom.getContext('2d');
+          }
+
+          // Build a smooth color lookup once per frame.
+          const palette = [];
+
+          for (let i = 0; i < 256; i++) {
+              const hue = (
+                  (flowingHue(i / 256) % 360) + 360
+              ) % 360 / 60;
+
+              const x = 1 - Math.abs(hue % 2 - 1);
+
+              let rgb;
+
+              if (hue < 1) rgb = [1, x, 0];
+              else if (hue < 2) rgb = [x, 1, 0];
+              else if (hue < 3) rgb = [0, 1, x];
+              else if (hue < 4) rgb = [0, x, 1];
+              else if (hue < 5) rgb = [x, 0, 1];
+              else rgb = [1, 0, x];
+
+              palette.push(
+                  rgb.map(value => 25 + value * 230)
+              );
+          }
+
+          const data = s.cloudPixels.data;
+          const time = t * .35;
+          const aspect = W / H;
+          const frequency = .7 + density * .3;
+
+          for (let y = 0; y < height; y++) {
+              for (let x = 0; x < width; x++) {
+                  const nx = (x / width - .5) * aspect * 2;
+                  const ny = (y / height - .5) * 2;
+
+                  // Warp the coordinates before generating the light field.
+                  const px = nx + .4 * Math.sin(
+                      ny * 2.2 + time + s.phase
+                  );
+
+                  const py = ny + .35 * Math.sin(
+                      nx * 1.8 - time * .8
+                  );
+
+                  const a = Math.sin(
+                      (px * 2.5 + py * 1.5) *
+                      frequency + time
+                  );
+
+                  const b = Math.sin(
+                      (py * 4.2 - px * 1.7) *
+                      frequency - time * 1.2
+                  );
+
+                  const d = Math.sin(
+                      (px * px + py * py) * 2.2 -
+                      time * 1.6
+                  );
+
+                  const field = a * .5 + b * .3 + d * .2;
+
+                  const ridge = Math.exp(
+                      -field * field * (5 + f.mid * 3)
+                  );
+
+                  const falloff = Math.exp(
+                      -.24 * (nx * nx + ny * ny)
+                  );
+
+                  const light =
+                      Math.pow(ridge, 2) *
+                      falloff *
+                      (.45 + f.level * .5);
+
+                  const huePosition = (
+                      .5 + a * .18 + b * .15 +
+                      time * .035
+                  ) % 1;
+
+                  const rgb = palette[
+                      Math.floor(
+                          (huePosition + 1) % 1 * 255
+                      )
+                  ];
+
+                  const index = (y * width + x) * 4;
+
+                  data[index] = 3 + rgb[0] * light;
+                  data[index + 1] = 5 + rgb[1] * light;
+                  data[index + 2] = 9 + rgb[2] * light;
+                  data[index + 3] = 255;
+              }
+          }
+
+          s.cloudContext.putImageData(
+              s.cloudPixels,
+              0,
+              0
+          );
+
+          // Render the glow at a small resolution to limit the work.
+          s.bloomContext.clearRect(0, 0, width, height);
+          s.bloomContext.filter = 'blur(6px)';
+          s.bloomContext.drawImage(s.cloud, 0, 0);
+
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+
+          ctx.drawImage(
+              s.bloom,
+              -W * .02,
+              -H * .02,
+              W * 1.04,
+              H * 1.04
+          );
+
+          ctx.globalAlpha *= .85;
+          ctx.drawImage(s.cloud, 0, 0, W, H);
+      }
+
+      ctx.restore();
+  }
+
+    function change(type) {
+        if (transition) scene = transition.to;
+
+        transition = {
+            from: scene,
+            to: makeScene((type + names.length) % names.length),
+            age: 0
+        };
+
+        clock = 0;
+
+        const selected = transition.to.type;
+
+        $('sceneName').textContent =
+            names[selected].toUpperCase() + ' / LIVE CANVAS';
+
+        for (const button of $('patterns').children) {
+            button.classList.toggle(
+                'active',
+                Number(button.dataset.type) === selected
+            );
+        }
+    }
+
+    function selected() {
+        return transition ? transition.to.type : scene.type;
+    }
+
+    // Audio input and analysis.
+    // Only local files are routed to the app's speakers.
+    const audio = {
+        live: false,
+        kind: 'ambient',
+        name: 'Ambient',
+        stream: null,
+        node: null,
+        url: null,
+        request: 0,
+        silent: 0,
+        peak: .18,
+        f: { bass: 0, mid: 0, high: 0, level: 0 },
+        spec: new Float32Array(64)
+    };
+
+    async function initAudio() {
+        if (!audio.ctx) {
+            const AC = window.AudioContext || window.webkitAudioContext;
+
+            if (!AC) {
+                throw Error('Web Audio is unavailable in this browser.');
+            }
+
+            audio.ctx = new AC();
+            audio.an = audio.ctx.createAnalyser();
+            audio.an.fftSize = 2048;
+            audio.an.smoothingTimeConstant = .45;
+
+            audio.bins = new Uint8Array(audio.an.frequencyBinCount);
+            audio.wave = new Float32Array(audio.an.fftSize);
+
+            audio.output = audio.ctx.createGain();
+            audio.output.gain.value = 0;
+
+            audio.an.connect(audio.output);
+            audio.output.connect(audio.ctx.destination);
+
+            audio.fileNode = audio.ctx.createMediaElementSource(player);
+        }
+
+        await audio.ctx.resume();
+
+        if (audio.ctx.state !== 'running') {
+            throw Error('Audio is suspended. Click the source button again.');
+        }
+    }
+
+    function cleanup() {
+        if (audio.stream) {
+            for (const track of audio.stream.getTracks()) {
+                track.onended = null;
+                track.stop();
+            }
+        }
+
+        if (audio.node) audio.node.disconnect();
+        if (audio.output) audio.output.gain.value = 0;
+
+        player.pause();
+        player.removeAttribute('src');
+        player.load();
+        player.hidden = true;
+
+        if (audio.url) URL.revokeObjectURL(audio.url);
+
+        audio.stream = null;
+        audio.node = null;
+        audio.url = null;
+        audio.live = false;
+        audio.kind = 'ambient';
+        audio.name = 'Ambient';
+        audio.silent = 0;
+        audio.peak = .18;
+        audio.spec.fill(0);
+        audio.trace?.fill(0);
+
+        for (const key in audio.f) audio.f[key] = 0;
+    }
+
+    function attach(node, kind, name, stream = null) {
+        cleanup();
+
+        audio.node = node;
+        audio.kind = kind;
+        audio.name = name;
+        audio.stream = stream;
+        audio.live = true;
+
+        node.connect(audio.an);
+        audio.output.gain.value = kind === 'file' ? 1 : 0;
+
+        if (stream) {
+            for (const track of stream.getTracks()) {
+                track.onended = () => {
+                    if (audio.stream === stream) {
+                        audio.request++;
+                        cleanup();
+                    }
+                };
+            }
+        }
+    }
+
+    let pending = false;
+
+    async function connect(kind, file) {
+        if (pending) return;
+
+        pending = true;
+        $('error').textContent = '';
+
+        const ticket = ++audio.request;
+        let incoming;
+
+        try {
+            if (kind === 'capture') {
+                if (!navigator.mediaDevices?.getDisplayMedia) {
+                    throw Error(
+                        'Capture needs a supported desktop browser ' +
+                        'and localhost or HTTPS.'
+                    );
+                }
+
+                // Invoke directly from the click to retain user activation.
+                incoming = await navigator.mediaDevices.getDisplayMedia({
+                    video: true,
+                    audio: {
+                        echoCancellation: false,
+                        noiseSuppression: false,
+                        autoGainControl: false
+                    },
+                    systemAudio: 'include',
+                    selfBrowserSurface: 'exclude'
+                });
+
+                if (!incoming.getAudioTracks().length) {
+                    throw Error(
+                        'No audio track was shared. ' +
+                        'Choose a tab and enable Share audio.'
+                    );
+                }
+            } else if (kind === 'mic') {
+                if (!navigator.mediaDevices?.getUserMedia) {
+                    throw Error(
+                        'Microphone access needs localhost or HTTPS.'
+                    );
+                }
+
+                incoming = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: false,
+                        noiseSuppression: false,
+                        autoGainControl: false
+                    }
+                });
+            }
+
+            if (ticket !== audio.request) {
+                incoming?.getTracks().forEach(track => track.stop());
+                return;
+            }
+
+            await initAudio();
+
+            if (ticket !== audio.request) {
+                incoming?.getTracks().forEach(track => track.stop());
+                return;
+            }
+
+            if (kind === 'file') {
+                attach(audio.fileNode, 'file', file.name);
+
+                audio.url = URL.createObjectURL(file);
+                player.src = audio.url;
+                player.hidden = false;
+
+                try {
+                    await player.play();
+                } catch (error) {
+                    if (ticket === audio.request) cleanup();
+
+                    throw Error(
+                        'This file could not play. ' +
+                        'Try a supported MP3 or WAV file.'
+                    );
+                }
+            } else {
+                const stream = new MediaStream(incoming.getAudioTracks());
+
+                attach(
+                    audio.ctx.createMediaStreamSource(stream),
+                    kind,
+                    kind === 'mic' ? 'Microphone' : 'Shared tab / system audio',
+                    incoming
+                );
+            }
+        } catch (error) {
+            incoming?.getTracks().forEach(track => track.stop());
+
+            $('error').textContent = error.name === 'NotAllowedError'
+                ? 'Permission declined or sharing cancelled. ' +
+                  'Your previous source is unchanged.'
+                : error.message;
+        } finally {
+            pending = false;
+        }
+    }
+
+    function sampleAudio(dt) {
+      if (!audio.live) return audio.f;
+
+      if (!audio.db ||
+          audio.db.length !== audio.an.frequencyBinCount) {
+          audio.db = new Float32Array(
+              audio.an.frequencyBinCount
+          );
+      }
+
+      if (!audio.trace) {
+          audio.trace = new Float32Array(256);
+      }
+
+      audio.an.getFloatFrequencyData(audio.db);
+      audio.an.getFloatTimeDomainData(audio.wave);
+
+      const hz = audio.ctx.sampleRate / audio.an.fftSize;
+
+      function energy(low, high) {
+          let power = 0;
+          let count = 0;
+
+          const end = Math.min(
+              audio.db.length,
+              Math.ceil(high / hz)
+          );
+
+          for (
+              let i = Math.max(1, Math.floor(low / hz));
+              i < end;
+              i++
+          ) {
+              const db = audio.db[i];
+
+              power += Number.isFinite(db)
+                  ? Math.pow(10, db / 10)
+                  : 0;
+
+              count++;
+          }
+
+          return count ? Math.sqrt(power / count) : 0;
+      }
+
+      // Fixed response: quieter audio stays quieter.
+      // Soft compression avoids abruptly hitting a maximum.
+      const response = (value, gain) =>
+          1 - Math.exp(-value * gain * sensitivity);
+
+      const targets = {
+          bass: response(energy(30, 180), 12),
+          mid: response(energy(180, 2500), 22),
+          high: response(energy(2500, 12000), 38)
+      };
+
+      let power = 0;
+
+      for (const sample of audio.wave) {
+          power += sample * sample;
+      }
+
+      const rms = Math.sqrt(power / audio.wave.length);
+
+      audio.silent = rms < .0008
+          ? audio.silent + dt
+          : 0;
+
+      targets.level = response(rms, 3.5);
+
+      for (const key of ['bass', 'mid', 'high', 'level']) {
+          const target = targets[key];
+          const rate = target > audio.f[key] ? 15 : 5;
+
+          audio.f[key] += (
+              target - audio.f[key]
+          ) * (1 - Math.exp(-dt * rate));
+      }
+
+      for (let i = 0; i < 64; i++) {
+          const low = 35 * Math.pow(400, i / 64);
+          const high = 35 * Math.pow(400, (i + 1) / 64);
+
+          const target = response(
+              energy(low, Math.max(high, low + hz)),
+              7
+          );
+
+          audio.spec[i] += (
+              target - audio.spec[i]
+          ) * (1 - Math.exp(-dt * 12));
+      }
+
+      // A smoothed waveform for the continuous ring.
+      for (let i = 0; i < audio.trace.length; i++) {
+          const index = Math.floor(
+              i / audio.trace.length * audio.wave.length
+          );
+
+          const target = Math.tanh(
+              audio.wave[index] * sensitivity * 2
+          );
+
+          audio.trace[i] += (
+              target - audio.trace[i]
+          ) * (1 - Math.exp(-dt * 20));
+      }
+
+      return audio.f;
+    }
+
+    let uiTime = 0;
+
+    function frame(now) {
+        const dt = Math.min(
+            .05,
+            Math.max(0, (now - last) / 1000 || .016)
+        );
+
+        last = now;
+
+        const real = sampleAudio(dt);
+
+        if (!paused) {
+            t += dt * speed;
+            clock += dt;
+            paletteMix = Math.min(1, paletteMix + dt * .35);
+
+            const f = audio.live ? real : {
+                bass: .12 + .1 * Math.sin(t * .7) ** 2,
+                mid: .12,
+                high: .08,
+                level: .12
+            };
+
+            if ($('auto').checked && clock > interval && !transition) {
+                change(
+                    selected() + 1 +
+                    Math.floor(Math.random() * (names.length - 1))
+                );
+            }
+
+            c.setTransform(D, 0, 0, D, 0, 0);
+            c.globalAlpha = 1;
+            c.fillStyle = '#05080e';
+            c.fillRect(0, 0, W, H);
+
+            const haze = c.createRadialGradient(
+                W / 2, H / 2, 1,
+                W / 2, H / 2, Math.max(W, H) * .65
+            );
+
+            haze.addColorStop(0, color(0, .12, 25));
+            haze.addColorStop(1, 'rgba(0,0,0,0)');
+
+            c.fillStyle = haze;
+            c.fillRect(0, 0, W, H);
+
+            if (transition) {
+                transition.age += dt;
+
+                const mix = smooth(
+                    Math.min(1, transition.age / 4)
+                );
+
+                update(transition.from, dt, f);
+                update(transition.to, dt, f);
+
+                c.globalAlpha = 1 - mix;
+                paint(c, transition.from, f);
+
+                bc.setTransform(D, 0, 0, D, 0, 0);
+                bc.clearRect(0, 0, W, H);
+                paint(bc, transition.to, f);
+
+                c.globalAlpha = mix;
+                c.drawImage(buffer, 0, 0, W, H);
+                c.globalAlpha = 1;
+
+                if (transition.age >= 4) {
+                    scene = transition.to;
+                    transition = null;
+                }
+            } else {
+                update(scene, dt, f);
+                paint(c, scene, f);
+            }
+        }
+
+        if (now - uiTime > 150) {
+            uiTime = now;
+
+            let message = audio.live
+                ? audio.name + ' · listening'
+                : 'Ambient · no audio connected';
+
+            if (audio.live && audio.silent > 2) {
+                message = audio.name +
+                    ' · connected, but no audible signal detected';
+            }
+
+            if (audio.kind === 'file' && player.paused) {
+                message = audio.name +
+                    (player.ended ? ' · ended' : ' · paused');
+            }
+
+            $('status').textContent = message;
+
+            for (const key of ['bass', 'mid', 'high']) {
+                $(key + 'Meter').style.width =
+                    (audio.live ? real[key] * 100 : 0) + '%';
+            }
+        }
+
+        requestAnimationFrame(frame);
+    }
+
+    // Build the pattern buttons.
+    for (let i = 0; i < names.length; i++) {
+        const button = document.createElement('button');
+
+        button.textContent = names[i];
+        button.dataset.type = i;
+
+        if (!i) button.classList.add('active');
+
+        button.onclick = () => {
+            $('auto').checked = false;
+            change(i);
+        };
+
+        $('patterns').appendChild(button);
+    }
+
+    // Build the palette buttons.
+    for (let i = 0; i < palettes.length; i++) {
+        const button = document.createElement('button');
+
+        button.title = paletteNames[i];
+        button.setAttribute('aria-label', paletteNames[i]);
+
+        button.style.background = 'linear-gradient(90deg,' +
+            palettes[i].map(
+                hue => `hsl(${hue},80%,55%)`
+            ).join(',') + ')';
+
+        if (!i) button.classList.add('active');
+
+        button.onclick = () => {
+            oldPalette = palette;
+            palette = i;
+            paletteMix = 0;
+
+            for (const other of $('palettes').children) {
+                other.classList.toggle('active', other === button);
+            }
+        };
+
+        $('palettes').appendChild(button);
+    }
+
+    $('capture').onclick = () => connect('capture');
+    $('mic').onclick = () => connect('mic');
+
+    $('file').onchange = event => {
+        if (event.target.files[0]) {
+            connect('file', event.target.files[0]);
+        }
+
+        event.target.value = '';
+    };
+
+    $('ambient').onclick = () => {
+        audio.request++;
+        cleanup();
+        $('error').textContent = '';
+    };
+
+    for (const id of ['speed', 'density', 'sensitivity', 'interval']) {
+        $(id).oninput = event => {
+            const value = Number(event.target.value);
+
+            if (id === 'speed') speed = value;
+            if (id === 'density') density = value;
+            if (id === 'sensitivity') sensitivity = value;
+            if (id === 'interval') interval = value;
+
+            $(id + 'Value').textContent = id === 'interval'
+                ? value + ' s'
+                : value.toFixed(1) + '×';
+        };
+    }
+
+    $('auto').onchange = () => clock = 0;
+    $('evolve').onclick = () => change(selected());
+
+    $('pause').onclick = () => {
+        paused = !paused;
+        $('pause').textContent = paused ? 'Resume' : 'Pause';
+    };
+
+    $('menu').onclick = () => {
+        const hidden = document.body.classList.toggle('hidden-controls');
+
+        $('menu').textContent = hidden
+            ? 'Show controls'
+            : 'Hide controls';
+
+        $('menu').setAttribute('aria-expanded', String(!hidden));
+    };
+
+    $('fullscreen').onclick = async () => {
+        try {
+            if (document.fullscreenElement) {
+                await document.exitFullscreen();
+            } else {
+                await $('stage').requestFullscreen();
+            }
+        } catch (error) {
+            $('error').textContent = 'Fullscreen is unavailable here.';
+        }
+    };
+
+    addEventListener('keydown', event => {
+        if (
+            event.ctrlKey || event.metaKey || event.altKey ||
+            ['INPUT', 'BUTTON', 'SELECT', 'TEXTAREA', 'AUDIO']
+                .includes(event.target.tagName)
+        ) {
+            return;
+        }
+
+        const key = event.key.toLowerCase();
+
+        if (key === 'm') $('menu').click();
+        if (key === 'f') $('fullscreen').click();
+        if (key === 'n') change(selected() + 1);
+
+        if (key === ' ') {
+            event.preventDefault();
+            $('pause').click();
+        }
+    });
+
+    document.addEventListener('fullscreenchange', () => {
+        $('fullscreen').textContent = document.fullscreenElement
+            ? 'Exit fullscreen'
+            : 'Fullscreen';
+
+        resize();
+    });
+
+    document.addEventListener('visibilitychange', () => {
+        last = performance.now();
+    });
+
+    addEventListener('pagehide', () => {
+        audio.request++;
+        cleanup();
+    });
+
+    new ResizeObserver(resize).observe($('screen'));
+
+    resize();
+    requestAnimationFrame(frame);
+    </script>
   </body>
 </html>
