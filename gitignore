@@ -1,0 +1,36 @@
+# Local Python environments and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# Local configuration
+.env
+.env.*
+!.env.example
+.vscode/
+.idea/
+
+# Operating system files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Temporary files
+*.log
+*.tmp
+*.bak
+*~
+
+# Local music used for testing
+*.mp3
+*.wav
+*.flac
+*.m4a
+*.ogg
+*.aac
+
+# Optional local tooling
+node_modules/
+playwright-report/
+test-results/
