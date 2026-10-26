@@ -3,7 +3,7 @@
   <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Synesthesia — Motion & Sound</title>
+  <title>Synesthesia Music Visualizer</title>
 
   <style>
     :root {
@@ -212,25 +212,54 @@
         aside { order: 1; }
         .screen { height: 52vh; min-height: 300px; }
     }
+    button,
+    .file {
+    transition:
+        background-color 160ms ease,
+        border-color 160ms ease,
+        box-shadow 160ms ease;
+    }
+
+    @media (hover: hover) {
+    button:not(:disabled):hover,
+    .file:hover {
+        border-color: var(--accent);
+        box-shadow:
+        0 0 0 1px rgba(209, 237, 178, .12),
+        0 0 18px rgba(209, 237, 178, .18);
+    }
+
+    #palettes button:hover {
+        box-shadow:
+        0 0 0 2px rgba(255, 255, 255, .15),
+        0 0 16px rgba(209, 237, 178, .3);
+    }
+
+    button.primary:hover,
+    button.active:hover {
+        background: var(--accent);
+        color: #17200f;
+    }
+    }
+
+    button:focus-visible,
+    .file:focus-within {
+    box-shadow: 0 0 18px rgba(209, 237, 178, .22);
+    }
     </style>
     </head>
 
     <body>
     <header>
         <strong>SYNESTHESIA</strong>
-        <small>MOTION & SOUND / GENERATIVE STUDIO</small>
     </header>
 
     <main>
-    <h1>See what sound can become.</h1>
-    <p>
-        Evolving geometry, shifting color, and motion shaped by music.
-        The ambient canvas starts automatically.
-    </p>
+    <h1>Music Visualizer</h1>
 
     <div class="layout">
         <aside id="sidebar">
-            <h2>01 / AUDIO SOURCE</h2>
+            <h2>AUDIO SOURCE</h2>
 
             <div class="sources">
                 <button id="capture" class="primary">
@@ -258,24 +287,12 @@
             <p id="error" role="alert"></p>
 
             <div class="section">
-                <h2>02 / PATTERN SYSTEM</h2>
+                <h2>VISUALS</h2>
                 <div id="patterns"></div>
-
-                <label class="check">
-                    <input id="auto" type="checkbox" checked>
-                    Automatically evolve scenes
-                </label>
-
-                <label class="control">
-                    Scene interval
-                    <output id="intervalValue">24 s</output>
-                    <input id="interval" type="range"
-                          min="10" max="60" value="24">
-                </label>
             </div>
 
             <div class="section">
-                <h2>03 / COLOR & MOTION</h2>
+                <h2>APPEARANCE</h2>
                 <div id="palettes"></div>
 
                 <label class="control">
@@ -311,7 +328,6 @@
                 <span id="sceneName">RADIAL WAVE / LIVE CANVAS</span>
 
                 <div class="tools">
-                    <button id="evolve">Evolve ↗</button>
                     <button id="pause">Pause</button>
                     <button id="menu"
                             aria-expanded="true"
@@ -355,11 +371,6 @@
             </div>
         </section>
     </div>
-
-    <footer>
-        DRAWN WITH MATHEMATICS. MOVED BY MUSIC. ·
-        LOCAL ANALYSIS · NO AI OR ACCOUNT REQUIRED
-    </footer>
     </main>
 
     <script>
@@ -394,8 +405,6 @@
     let speed = 1;
     let density = 1;
     let sensitivity = 1;
-    let interval = 24;
-    let clock = 0;
     let palette = 0;
     let oldPalette = 0;
     let paletteMix = 1;
@@ -497,7 +506,7 @@
         const a = get(oldPalette);
         const b = get(palette);
         const difference = ((b - a + 540) % 360) - 180;
-        const hue = a + difference * smooth(paletteMix) + t * 3;
+        const hue = a + difference * smooth(paletteMix);
 
         return `hsla(${hue},85%,${light}%,${clamp(alpha, 0, 1)})`;
     }
@@ -599,7 +608,7 @@
 
         return a + (
             ((b - a + 540) % 360) - 180
-        ) * smooth(paletteMix) + t * 4;
+        ) * smooth(paletteMix);
     }
 
     function waveColor(position, alpha = 1, light = 65) {
@@ -636,30 +645,373 @@
         ctx.closePath();
     }
 
+    function drawRadial(ctx, s, f) {
+        const size = Math.min(W, H);
+        const time = t;
+        const TAU = Math.PI * 2;
+
+        if (!s.radialMotion) {
+            s.radialMotion = {
+            lastTime: time,
+            history: [{ time: time - 2, value: 0 }],
+            slowBass: 0,
+            pulse: 0,
+            activity: 0
+            };
+        }
+
+        const state = s.radialMotion;
+        const elapsed = Math.max(0, time - state.lastTime);
+        const dt = Math.min(0.1, elapsed);
+        state.lastTime = time;
+
+        const limit = (value, low, high) =>
+            Math.max(low, Math.min(high, value));
+
+        const bass = limit(f.bass || 0, 0, 1);
+        const mid = limit(f.mid || 0, 0, 1);
+        const level = limit(f.level || 0, 0, 1);
+
+        // Smoothly enter and leave music mode as sound arrives or fades.
+        const hasSound = audio.live && level > 0.008;
+        const activityTarget = hasSound ? 1 : 0;
+
+        state.activity +=
+            (activityTarget - state.activity) *
+            (1 - Math.exp(-dt * 4));
+
+        // Follow the bass slowly so new hits stand out from sustained notes.
+        state.slowBass +=
+            (bass - state.slowBass) *
+            (1 - Math.exp(-dt * 1.8));
+
+        const attack = limit(
+            (bass - state.slowBass) * 3.5,
+            0,
+            1
+        );
+
+        // Fast attack, softer release.
+        const pulseTarget = limit(
+            attack * 0.75 + bass * 0.25 + mid * 0.12,
+            0,
+            1
+        );
+
+        const pulseRate = pulseTarget > state.pulse ? 22 : 5;
+
+        state.pulse +=
+            (pulseTarget - state.pulse) *
+            (1 - Math.exp(-dt * pulseRate));
+
+        if (elapsed > 0) {
+            state.history.push({
+            time,
+            value: hasSound ? state.pulse : 0
+            });
+        }
+
+        // Keep enough history for a pulse to travel around the rim.
+        while (
+            state.history.length > 2 &&
+            state.history[1].time < time - 3
+        ) {
+            state.history.shift();
+        }
+
+        function pastPulse(delay) {
+            const target = time - delay;
+            const history = state.history;
+
+            if (target <= history[0].time) {
+            return history[0].value;
+            }
+
+            let low = 0;
+            let high = history.length - 1;
+
+            while (high - low > 1) {
+            const middle = (low + high) >> 1;
+
+            if (history[middle].time <= target) {
+                low = middle;
+            } else {
+                high = middle;
+            }
+            }
+
+            const a = history[low];
+            const b = history[high];
+            const fraction = limit(
+            (target - a.time) / Math.max(0.0001, b.time - a.time),
+            0,
+            1
+            );
+
+            return a.value + (b.value - a.value) * fraction;
+        }
+
+        const baseRadius = size * 0.235;
+        const pointCount = 240;
+
+        // Increase this for larger waves.
+        const waveHeight = size * 0.26;
+
+        // Seconds for a pulse to travel from bottom to top.
+        // Smaller = faster.
+        const travelTime = 0.95;
+
+        // Increasing angles move clockwise on a canvas.
+        const idleAngle = time * 0.85 + s.phase;
+
+        function pointsFor(layer, inset = 0) {
+            const points = [];
+
+            for (let i = 0; i < pointCount; i++) {
+            const angle = i / pointCount * TAU;
+
+            // Zero at the bottom, one at the top.
+            // Both sides therefore carry the same pulse upward.
+            const distanceFromBottom =
+                Math.acos(limit(Math.sin(angle), -1, 1)) / Math.PI;
+
+                // Both hemispheres sample the same frequencies.
+                // Position stays fixed: there is no bottom-to-top travel.
+                const position = distanceFromBottom;
+                const spectrum = audio.spec;
+                const bin = position * (spectrum.length - 1);
+
+                // Interpolate nearby bins to avoid jagged spectrum spikes.
+                function bandAt(offset) {
+                    const index = limit(
+                    bin + offset,
+                    0,
+                    spectrum.length - 1
+                    );
+
+                    const left = Math.floor(index);
+                    const right = Math.min(left + 1, spectrum.length - 1);
+                    const mix = index - left;
+
+                    return spectrum[left] * (1 - mix) +
+                        spectrum[right] * mix;
+                }
+
+                const band =
+                    bandAt(-1) * 0.25 +
+                    bandAt(0) * 0.5 +
+                    bandAt(1) * 0.25;
+
+                // Bass moves the whole outline and emphasizes new hits.
+                // Keep some overall bounce without drowning out the contour.
+                const bassMotion =
+                    bass * 0.04 + state.pulse * 0.08;
+
+                // Stronger mirrored shoulders respond to the mids.
+                const shoulders = Math.pow(
+                    Math.sin(position * Math.PI),
+                    2
+                );
+
+                // Focus additional movement around the upper half.
+                const upperHalf = Math.pow(
+                (1 - Math.sin(angle)) / 2,
+                3
+                );
+
+                // Three broad, mirrored folds around the crown.
+                const crownShape =
+                0.55 +
+                0.45 * Math.cos((position - 1) * Math.PI * 6);
+
+                const crownMotion =
+                upperHalf *
+                crownShape *
+                (
+                    mid * 0.65 +
+                    limit(f.high || 0, 0, 1) * 0.45 +
+                    state.pulse * 0.12
+                );
+
+                const midMotion =
+                mid * shoulders * 0.8 + crownMotion;
+
+                // Bring quieter frequency details forward.
+                // Soft compression keeps louder frequencies from exploding.
+                const spectralEnergy = 1 - Math.exp(-band * 7);
+
+                // Beat accents are stronger at the sides than at the poles.
+                const beatShape =
+                    state.pulse * shoulders * 0.20;
+
+                const high = limit(f.high || 0, 0, 1);
+
+                // Small mirrored ripples follow treble energy.
+                const fineDetail =
+                    high *
+                    Math.cos(position * Math.PI * 12) *
+                    0.16;
+
+                const wave =
+                    bassMotion +
+                    midMotion +
+                    spectralEnergy * 1.25 +
+                    beatShape +
+                    fineDetail;
+
+                    // Compress large peaks gently, leaving room for visible detail.
+                    const musicWave = limit(
+                    wave / (1 + Math.max(0, wave) * 0.3),
+                    -0.08,
+                    1.05
+                    );
+            // Two smooth swells, exactly opposite each other.
+            // These are periodic, so there is no restart or seam.
+            const relative = angle - idleAngle + layer * 0.045;
+
+            const firstSwell = Math.exp(
+                5 * (Math.cos(relative) - 1)
+            );
+
+            const oppositeSwell = Math.exp(
+                5 * (Math.cos(relative - Math.PI) - 1)
+            );
+
+            const idleWave = (firstSwell + oppositeSwell) * 0.48;
+
+            const displacement =
+                idleWave * (1 - state.activity) +
+                musicWave * state.activity;
+
+            const radius =
+                baseRadius +
+                displacement * waveHeight +
+                layer * size * 0.0055 -
+                inset;
+
+            points.push([
+                Math.cos(angle) * radius,
+                Math.sin(angle) * radius
+            ]);
+            }
+
+            return points;
+        }
+
+        ctx.save();
+        ctx.translate(W / 2, H / 2);
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+
+        // Soft surrounding light.
+        const glow = ctx.createRadialGradient(
+            0, 0, baseRadius * 0.75,
+            0, 0, baseRadius + waveHeight + size * 0.08
+        );
+
+        glow.addColorStop(0, waveColor(0.2, 0));
+        glow.addColorStop(0.55, waveColor(0.2, 0.13));
+        glow.addColorStop(1, waveColor(0.5, 0));
+
+        ctx.fillStyle = glow;
+        ctx.fillRect(-W / 2, -H / 2, W, H);
+
+        // Filled silhouettes create connected colored trails.
+        // Each trail samples a slightly earlier moment.
+        for (let layer = 5; layer >= 1; layer--) {
+            const colorPosition = layer / 7 + time * 0.012;
+
+            closedWave(ctx, pointsFor(layer));
+
+            ctx.fillStyle = waveColor(colorPosition, 0.95, 58);
+            ctx.shadowColor = waveColor(colorPosition, 0.7, 65);
+            ctx.shadowBlur = layer === 5 ? 22 : 8;
+            ctx.fill();
+        }
+
+        // The inner silhouette leaves a thick, continuous rim.
+        closedWave(ctx, pointsFor(0));
+
+        ctx.fillStyle = '#080b13';
+        ctx.shadowBlur = 0;
+        ctx.fill();
+
+        const rim = ctx.createLinearGradient(
+            -baseRadius, -baseRadius,
+            baseRadius, baseRadius
+        );
+
+        rim.addColorStop(0, waveColor(0.05, 1, 88));
+        rim.addColorStop(0.5, waveColor(0.35, 1, 97));
+        rim.addColorStop(1, waveColor(0.65, 1, 85));
+
+        ctx.strokeStyle = rim;
+        ctx.lineWidth = size * 0.009 + level * size * 0.004;
+        ctx.shadowColor = waveColor(0.25, 0.8, 80);
+        ctx.shadowBlur = 20;
+        ctx.stroke();
+
+        // A softly lit center disc, independent of the moving rim.
+        const discRadius = baseRadius * 0.82;
+
+        const disc = ctx.createRadialGradient(
+            -discRadius * 0.3,
+            -discRadius * 0.35,
+            0,
+            0,
+            0,
+            discRadius
+        );
+
+        disc.addColorStop(0, '#141a27');
+        disc.addColorStop(0.55, '#0e1420');
+        disc.addColorStop(0.92, '#090e17');
+        disc.addColorStop(1, '#111925');
+
+        ctx.beginPath();
+        ctx.arc(0, 0, discRadius, 0, TAU);
+        ctx.fillStyle = disc;
+        ctx.shadowBlur = 0;
+        ctx.fill();
+
+        ctx.strokeStyle = 'rgba(190, 210, 245, 0.09)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        ctx.restore();
+ }
+    
+
     function paint(ctx, s, f) {
-      ctx.save();
+        if (s.type === 0) 
+        {
+            drawRadial(ctx, s, f);
+            return; 
+        }  
 
-      const m = Math.min(W, H);
+        ctx.save();
 
-      if (s.type === 0) {
-          // RADIAL WAVE:
-          // Larger, slower, and driven by smoothed frequency energy.
-          // The raw waveform component that caused jitter is removed.
+        const m = Math.min(W, H);
 
-          const N = Math.round(96 * density);
+        if (s.type === 0) {
+            // RADIAL WAVE:
+            // Larger, slower, and driven by smoothed frequency energy.
+            // The raw waveform component that caused jitter is removed.
 
-          if (!s.ring || s.ring.length !== N) {
-              s.ring = new Float32Array(N);
-          }
+            const N = Math.round(96 * density);
 
-          const now = performance.now() / 1000;
+            if (!s.ring || s.ring.length !== N) {
+                s.ring = new Float32Array(N);
+            }
 
-          const dt = Math.min(
-              .05,
-              Math.max(0, now - (s.ringTime ?? now))
-          );
+            const now = performance.now() / 1000;
 
-          s.ringTime = now;
+            const dt = Math.min(
+                .05,
+                Math.max(0, now - (s.ringTime ?? now))
+            );
+
+            s.ringTime = now;
 
           // Lower values produce slower, smoother following.
           const follow = 1 - Math.exp(-dt * 9);
@@ -848,79 +1200,318 @@
               else rgb = [1, 0, x];
 
               palette.push(
-                  rgb.map(value => 25 + value * 230)
+                  rgb.map(value =>
+                    Math.round((.335 + value * .63) * 255)
+                    )
               );
           }
 
-          const data = s.cloudPixels.data;
-          const time = t * .35;
-          const aspect = W / H;
-          const frequency = .7 + density * .3;
+            const data = s.cloudPixels.data;
+            const time = t * .35;
+            const aspect = W / H;
+            const frequency = .7 + density * .3;
 
-          for (let y = 0; y < height; y++) {
-              for (let x = 0; x < width; x++) {
-                  const nx = (x / width - .5) * aspect * 2;
-                  const ny = (y / height - .5) * 2;
+            const active =
+            audio.live &&
+            !(audio.kind === 'file' && player.paused) &&
+            f.level > .006;
 
-                  // Warp the coordinates before generating the light field.
-                  const px = nx + .4 * Math.sin(
-                      ny * 2.2 + time + s.phase
-                  );
+            if (!s.cloudMotion) {
+            s.cloudMotion = {
+                last: t,
+                mix: 0,
+                bass: 0,
+                mid: 0,
+                high: 0
+            };
+            }
 
-                  const py = ny + .35 * Math.sin(
-                      nx * 1.8 - time * .8
-                  );
+            const motion = s.cloudMotion;
+            const elapsed = Math.min(
+            .05,
+            Math.max(0, t - motion.last)
+            );
 
-                  const a = Math.sin(
-                      (px * 2.5 + py * 1.5) *
-                      frequency + time
-                  );
+            motion.last = t;
 
-                  const b = Math.sin(
-                      (py * 4.2 - px * 1.7) *
-                      frequency - time * 1.2
-                  );
+            function follow(value, target, attack = 30, release = 5) {
+            const rate = target > value ? attack : release;
 
-                  const d = Math.sin(
-                      (px * px + py * py) * 2.2 -
-                      time * 1.6
-                  );
+            return value +
+                (target - value) *
+                (1 - Math.exp(-elapsed * rate));
+            }
 
-                  const field = a * .5 + b * .3 + d * .2;
+            // Smooth movements with a longer, natural release.
+            for (const key of ['bass', 'mid', 'high']) {
+            const target = active
+                ? 1 - Math.exp(-Math.max(0, f[key]) * 3)
+                : 0;
 
-                  const ridge = Math.exp(
-                      -field * field * (5 + f.mid * 3)
-                  );
+            motion[key] = follow(motion[key], target);
+            }
 
-                  const falloff = Math.exp(
-                      -.24 * (nx * nx + ny * ny)
-                  );
+            motion.mix = follow(
+            motion.mix,
+            active ? 1 : 0,
+            2,
+            2
+            );
 
-                  const light =
-                      Math.pow(ridge, 2) *
-                      falloff *
-                      (.45 + f.level * .5);
+            // Emphasize new bass hits rather than sustained loudness.
+            motion.bassBed ??= 0;
 
-                  const huePosition = (
-                      .5 + a * .18 + b * .15 +
-                      time * .035
-                  ) % 1;
+            motion.bassBed +=
+            (motion.bass - motion.bassBed) *
+            (1 - Math.exp(-elapsed * 1.6));
 
-                  const rgb = palette[
-                      Math.floor(
-                          (huePosition + 1) % 1 * 255
-                      )
-                  ];
+            const punchTarget = active
+            ? Math.min(
+                1,
+                Math.max(0, motion.bass - motion.bassBed) * 4
+                )
+            : 0;
 
-                  const index = (y * width + x) * 4;
+            motion.punch = follow(
+            motion.punch || 0,
+            punchTarget,
+            35,
+            6
+            );
 
-                  data[index] = 3 + rgb[0] * light;
-                  data[index + 1] = 5 + rgb[1] * light;
-                  data[index + 2] = 9 + rgb[2] * light;
-                  data[index + 3] = 255;
-              }
-          }
+            const punch = motion.punch;
+            // Three independent formations, each with its own audio response.
+            const forms = [
+            {
+                // Bass: a strong upward surge and local expansion.
+                x:
+                -aspect * .32 +
+                motion.bass * aspect * .32 *
+                Math.sin(time * .8 + s.phase),
 
+                y:
+                .4 -
+                motion.bass * .65 -
+                punch * .22,
+
+                scale:
+                1 +
+                motion.bass * .5 +
+                punch * .45,
+
+                bend:
+                .12 +
+                motion.bass * .35 +
+                punch * .2,
+
+                ripple: .015,
+
+                angle:
+                -.25 +
+                motion.bass * .3 *
+                Math.sin(time),
+
+                energy: motion.bass,
+                hue: .12
+            },
+
+            {
+                // Mids: wider sideways movement and stronger folding.
+                x:
+                aspect * .22 +
+                motion.mid * aspect * .48 *
+                Math.sin(time * .9 + 1.4),
+
+                y:
+                -.18 +
+                motion.mid * .42 *
+                Math.cos(time * .7 + .6),
+
+                scale:
+                1 + motion.mid * .4,
+
+                bend:
+                .2 +
+                motion.mid * .65 +
+                punch * .12,
+
+                ripple:
+                .02 + motion.mid * .035,
+
+                angle:
+                .3 +
+                motion.mid * .65 *
+                Math.sin(time * .8 + .5),
+
+                energy: motion.mid,
+                hue: .43
+            },
+
+            {
+                // Treble: a separate formation with sharper ripples.
+                x:
+                -aspect * .05 +
+                motion.high * aspect * .5 *
+                Math.sin(time * 1.1 + 3),
+
+                y:
+                -.5 +
+                motion.high * .48 *
+                Math.sin(time * .85 + 2),
+
+                scale:
+                1 + motion.high * .35,
+
+                bend:
+                .16 + motion.high * .3,
+
+                ripple:
+                .02 + motion.high * .22,
+
+                angle:
+                -.15 +
+                motion.high * .55 *
+                Math.sin(time * 1.2 + 2),
+
+                energy: motion.high,
+                hue: .75
+            }
+            ];
+            for (const form of forms) {
+            form.cos = Math.cos(form.angle);
+            form.sin = Math.sin(form.angle);
+            }
+
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const nx = (x / width - .5) * aspect * 2;
+                    const ny = (y / height - .5) * 2;
+
+                    // Original idle field: unchanged.
+                    const px = nx + .4 * Math.sin(
+                    ny * 2.2 + time + s.phase
+                    );
+
+                    const py = ny + .35 * Math.sin(
+                    nx * 1.8 - time * .8
+                    );
+
+                    const a = Math.sin(
+                    (px * 2.5 + py * 1.5) * frequency + time
+                    );
+
+                    const b = Math.sin(
+                    (py * 4.2 - px * 1.7) * frequency - time * 1.2
+                    );
+
+                    const d = Math.sin(
+                    (px * px + py * py) * 2.2 - time * 1.6
+                    );
+
+                    const field = a * .5 + b * .3 + d * .2;
+
+                    const ridge = Math.exp(
+                    -field * field * (5 + f.mid * 3)
+                    );
+
+                    const falloff = Math.exp(
+                    -.24 * (nx * nx + ny * ny)
+                    );
+
+                    const light =
+                    Math.pow(ridge, 2) *
+                    falloff *
+                    (.45 + f.level * .5);
+
+                    const huePosition =
+                    (.5 + a * .18 + b * .15 + time * .035) % 1;
+
+                    const idleRGB = palette[
+                    Math.floor((huePosition + 1) % 1 * 255)
+                    ];
+
+                    let red = idleRGB[0] * light;
+                    let green = idleRGB[1] * light;
+                    let blue = idleRGB[2] * light;
+
+                    if (motion.mix > .001) {
+                    let musicRed = 0;
+                    let musicGreen = 0;
+                    let musicBlue = 0;
+
+                    for (let i = 0; i < forms.length; i++) {
+                        const form = forms[i];
+
+                        // Transform this formation around its own center.
+                        // The camera and other formations stay independent.
+                        const dx = nx - form.x;
+                        const dy = ny - form.y;
+
+                        const u =
+                        (dx * form.cos + dy * form.sin) / form.scale;
+
+                        const v =
+                        (-dx * form.sin + dy * form.cos) / form.scale;
+
+                        const curve =
+                        Math.sin(u * 2.3 * frequency + time + i * 1.7) *
+                        form.bend;
+
+                        const detail =
+                        Math.sin(u * 9 * frequency - time * 1.5 + i) *
+                        form.ripple;
+
+                        const distance = v - curve - detail;
+
+                        // A soft cloud ribbon with a brighter central fold.
+                        const thickness = .09 + form.energy * .07;
+
+                        const core = Math.exp(
+                        -(distance * distance) /
+                        (thickness * thickness)
+                        );
+
+                        const mist = Math.exp(
+                        -(distance * distance) /
+                        (thickness * thickness * 7)
+                        );
+
+                        const ends = Math.exp(
+                        -(u * u) / (aspect * aspect * .55)
+                        );
+
+                        const brightness =
+                        (core * .48 + mist * .2) *
+                        ends *
+                        (.8 + form.energy * .3);
+
+                        const colorPosition =
+                        form.hue + u * .08 + time * .025;
+
+                        const rgb = palette[
+                        Math.floor(
+                            ((colorPosition % 1 + 1) % 1) * 255
+                        )
+                        ];
+
+                        musicRed += rgb[0] * brightness;
+                        musicGreen += rgb[1] * brightness;
+                        musicBlue += rgb[2] * brightness;
+                    }
+
+                    red += (musicRed - red) * motion.mix;
+                    green += (musicGreen - green) * motion.mix;
+                    blue += (musicBlue - blue) * motion.mix;
+                    }
+
+                    const index = (y * width + x) * 4;
+
+                    data[index] = 3 + red;
+                    data[index + 1] = 5 + green;
+                    data[index + 2] = 9 + blue;
+                    data[index + 3] = 255;
+                }
+            } 
           s.cloudContext.putImageData(
               s.cloudPixels,
               0,
@@ -958,8 +1549,6 @@
             to: makeScene((type + names.length) % names.length),
             age: 0
         };
-
-        clock = 0;
 
         const selected = transition.to.type;
 
@@ -1312,7 +1901,6 @@
 
         if (!paused) {
             t += dt * speed;
-            clock += dt;
             paletteMix = Math.min(1, paletteMix + dt * .35);
 
             const f = audio.live ? real : {
@@ -1321,13 +1909,6 @@
                 high: .08,
                 level: .12
             };
-
-            if ($('auto').checked && clock > interval && !transition) {
-                change(
-                    selected() + 1 +
-                    Math.floor(Math.random() * (names.length - 1))
-                );
-            }
 
             c.setTransform(D, 0, 0, D, 0, 0);
             c.globalAlpha = 1;
@@ -1414,7 +1995,6 @@
         if (!i) button.classList.add('active');
 
         button.onclick = () => {
-            $('auto').checked = false;
             change(i);
         };
 
@@ -1430,7 +2010,7 @@
 
         button.style.background = 'linear-gradient(90deg,' +
             palettes[i].map(
-                hue => `hsl(${hue},80%,55%)`
+                hue => `hsl(${hue},90%,65%)`
             ).join(',') + ')';
 
         if (!i) button.classList.add('active');
@@ -1465,23 +2045,18 @@
         $('error').textContent = '';
     };
 
-    for (const id of ['speed', 'density', 'sensitivity', 'interval']) {
+    for (const id of ['speed', 'density', 'sensitivity']) {
         $(id).oninput = event => {
             const value = Number(event.target.value);
 
             if (id === 'speed') speed = value;
             if (id === 'density') density = value;
             if (id === 'sensitivity') sensitivity = value;
-            if (id === 'interval') interval = value;
 
-            $(id + 'Value').textContent = id === 'interval'
-                ? value + ' s'
-                : value.toFixed(1) + '×';
+            $(id + 'Value').textContent =
+            value.toFixed(1) + '×';
         };
     }
-
-    $('auto').onchange = () => clock = 0;
-    $('evolve').onclick = () => change(selected());
 
     $('pause').onclick = () => {
         paused = !paused;
